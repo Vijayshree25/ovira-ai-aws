@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { collection, query, where, orderBy, limit, getDocs, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase/firebase';
+// TODO: Replace with AWS DynamoDB queries
 import { SymptomLog } from '@/types';
 import {
     calculateCycleDay,
@@ -37,40 +36,13 @@ export default function DashboardPage() {
 
     useEffect(() => {
         const fetchRecentLogs = async () => {
-            if (!user || !db) return;
+            if (!user) return;
 
             try {
-                const logsRef = collection(db!, 'users', user.uid, 'logs');
-                const q = query(logsRef, orderBy('date', 'desc'), limit(7));
-                const snapshot = await getDocs(q);
-
-                const logs: SymptomLog[] = [];
-                snapshot.forEach((doc) => {
-                    logs.push({ id: doc.id, ...doc.data() } as SymptomLog);
-                });
-
-                setRecentLogs(logs);
-
-                // Calculate streak
-                let currentStreak = 0;
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-
-                for (let i = 0; i < logs.length; i++) {
-                    const logDate = logs[i].date.toDate();
-                    logDate.setHours(0, 0, 0, 0);
-
-                    const expectedDate = new Date(today);
-                    expectedDate.setDate(expectedDate.getDate() - i);
-
-                    if (logDate.getTime() === expectedDate.getTime()) {
-                        currentStreak++;
-                    } else {
-                        break;
-                    }
-                }
-
-                setStreak(currentStreak);
+                // TODO: Fetch logs from DynamoDB
+                // const logs = await fetchLogsFromDynamoDB(user.uid);
+                setRecentLogs([]);
+                setStreak(0);
             } catch (error) {
                 console.error('Error fetching logs:', error);
             } finally {

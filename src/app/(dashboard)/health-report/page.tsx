@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
-import { collection, query, orderBy, getDocs, limit } from 'firebase/firestore';
-import { db } from '@/lib/firebase/firebase';
+// TODO: Replace with AWS DynamoDB queries
 import { SymptomLog } from '@/types';
 import { formatDate } from '@/lib/utils';
 import {
@@ -98,19 +97,12 @@ export default function HealthReportPage() {
 
     useEffect(() => {
         const fetchLogs = async () => {
-            if (!user || !db) return;
+            if (!user) return;
 
             try {
-                const logsRef = collection(db, 'users', user.uid, 'logs');
-                const q = query(logsRef, orderBy('date', 'desc'), limit(90));
-                const snapshot = await getDocs(q);
-
-                const fetchedLogs: SymptomLog[] = [];
-                snapshot.forEach((doc) => {
-                    fetchedLogs.push({ id: doc.id, ...doc.data() } as SymptomLog);
-                });
-
-                setLogs(fetchedLogs);
+                // TODO: Fetch logs from DynamoDB
+                // const fetchedLogs = await fetchLogsFromDynamoDB(user.uid, 90);
+                setLogs([]);
             } catch (error) {
                 console.error('Error fetching logs:', error);
             } finally {

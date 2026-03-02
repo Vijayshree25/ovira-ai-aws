@@ -94,29 +94,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Sign up with email/password
     const signUp = async (email: string, password: string, displayName: string) => {
         try {
-            const cognitoUser = await signUpUser(email, password, displayName);
+            // Call server-side API route
+            const response = await fetch('/api/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, displayName }),
+            });
 
-            // Create initial user profile in DynamoDB
-            const profile: Partial<UserProfile> = {
-                uid: cognitoUser.getUsername(),
-                email: email,
-                displayName,
-                onboardingComplete: false,
-                createdAt: new Date().toISOString() as any,
-                averageCycleLength: 28,
-                conditions: [],
-                language: 'en',
-                ageRange: '25-34',
-            };
+            const data = await response.json();
 
-            await createUserProfile(profile);
-            
-            // Sign in the user after signup
-            const authUser = await signInUser(email, password);
-            setUser(authUser);
-            setUserProfile(profile as UserProfile);
+            if (!data.success) {
+                const error = new Error(data.error || 'Signup failed');
+                (error as any).code = data.code;
+                throw error;
+            }
+
+            // Check if user needs email verification
+            if (!data.userConfirmed) {
+                setError('Account created! Please check your email for verification code. Then try logging in.');
+                return;
+            }
+
+            // If auto-confirmed, sign in the user
+            await signIn(email, password);
         } catch (err: any) {
-            const message = getCognitoErrorMessage(err);
+            const message = err.message || 'An error occurred during signup';
             setError(message);
             throw err;
         }
@@ -125,11 +127,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Sign in with email/password
     const signIn = async (email: string, password: string) => {
         try {
-            const authUser = await signInUser(email, password);
+            // Call server-side API route
+            const response = await fetch('/api/auth/signin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || 'Signin failed');
+            }
+
+            // Store tokens and create user object
+            const authResult = data.authenticationResult;
+            const authUser: CognitoAuthUser = {
+                username: email,
+                email: email,
+                attributes: {},
+                session: authResult as any,
+            };
+
             setUser(authUser);
-            await fetchUserProfile(authUser.username);
+            await fetchUserProfile(email);
         } catch (err: any) {
-            const message = getCognitoErrorMessage(err);
+            const message = err.message || 'An error occurred during signin';
             setError(message);
             throw err;
         }

@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { MOOD_OPTIONS, FLOW_LEVELS, ENERGY_LEVELS, SYMPTOM_OPTIONS } from '@/types';
-import { doc, setDoc, Timestamp, collection } from 'firebase/firestore';
-import { db } from '@/lib/firebase/firebase';
+// TODO: Replace with AWS DynamoDB operations
 import { format } from 'date-fns';
 import { Calendar, Check, ArrowLeft, Save, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
@@ -37,25 +36,23 @@ export default function LogPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user || !db) return;
+        if (!user) return;
 
         setLoading(true);
 
         try {
-            const logRef = doc(collection(db, 'users', user.uid, 'logs'));
-
-            await setDoc(logRef, {
-                userId: user.uid,
-                date: Timestamp.fromDate(selectedDate),
-                flowLevel,
-                painLevel,
-                mood,
-                energyLevel,
-                sleepHours,
-                symptoms,
-                notes: notes.trim() || null,
-                createdAt: Timestamp.now(),
-            });
+            // TODO: Save log to DynamoDB
+            // await saveToDynamoDB({
+            //     userId: user.uid,
+            //     date: selectedDate.toISOString(),
+            //     flowLevel,
+            //     painLevel,
+            //     mood,
+            //     energyLevel,
+            //     sleepHours,
+            //     symptoms,
+            //     notes: notes.trim() || null,
+            // });
 
             setSuccess(true);
             setTimeout(() => {

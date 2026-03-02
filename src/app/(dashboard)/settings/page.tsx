@@ -7,9 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { SUPPORTED_LANGUAGES, HEALTH_CONDITIONS } from '@/types';
-import { doc, updateDoc, deleteDoc, collection, getDocs, Timestamp } from 'firebase/firestore';
-import { deleteUser } from 'firebase/auth';
-import { db, auth } from '@/lib/firebase/firebase';
+// TODO: Replace with AWS DynamoDB and Cognito operations
 import {
     ArrowLeft,
     User,
@@ -39,15 +37,16 @@ export default function SettingsPage() {
     const [cycleLength, setCycleLength] = useState(userProfile?.averageCycleLength || 28);
 
     const handleSave = async () => {
-        if (!user || !db) return;
+        if (!user) return;
 
         setLoading(true);
         try {
-            await updateDoc(doc(db, 'users', user.uid), {
-                displayName: displayName.trim(),
-                language,
-                averageCycleLength: cycleLength,
-            });
+            // TODO: Update user profile in DynamoDB
+            // await updateUserProfile(user.uid, {
+            //     displayName: displayName.trim(),
+            //     language,
+            //     averageCycleLength: cycleLength,
+            // });
 
             await refreshUserProfile();
             setSuccess(true);
@@ -60,32 +59,16 @@ export default function SettingsPage() {
     };
 
     const handleExportData = async () => {
-        if (!user || !db) return;
+        if (!user) return;
 
         setLoading(true);
         try {
-            // Fetch all user data
-            const logsRef = collection(db!, 'users', user.uid, 'logs');
-            const logsSnapshot = await getDocs(logsRef);
-
-            const logs: any[] = [];
-            logsSnapshot.forEach((doc) => {
-                const data = doc.data();
-                logs.push({
-                    id: doc.id,
-                    ...data,
-                    date: data.date?.toDate?.().toISOString(),
-                    createdAt: data.createdAt?.toDate?.().toISOString(),
-                });
-            });
-
+            // TODO: Fetch all user data from DynamoDB
+            // const logs = await fetchAllLogsFromDynamoDB(user.uid);
+            
             const exportData = {
-                profile: {
-                    ...userProfile,
-                    createdAt: userProfile?.createdAt?.toDate?.().toISOString(),
-                    lastPeriodStart: userProfile?.lastPeriodStart?.toDate?.().toISOString(),
-                },
-                logs,
+                profile: userProfile,
+                logs: [],
                 exportedAt: new Date().toISOString(),
             };
 
@@ -107,30 +90,18 @@ export default function SettingsPage() {
     };
 
     const handleDeleteAccount = async () => {
-        if (!user || !db || !auth) return;
+        if (!user) return;
 
         setDeleteLoading(true);
         try {
-            // Delete user document and subcollections
-            const logsRef = collection(db!, 'users', user.uid, 'logs');
-            const logsSnapshot = await getDocs(logsRef);
-
-            const deletePromises = logsSnapshot.docs.map((doc) => deleteDoc(doc.ref));
-            await Promise.all(deletePromises);
-
-            await deleteDoc(doc(db!, 'users', user.uid));
-
-            // Delete auth user
-            if (auth!.currentUser) {
-                await deleteUser(auth!.currentUser);
-            }
+            // TODO: Delete user data from DynamoDB and Cognito
+            // await deleteUserFromDynamoDB(user.uid);
+            // await deleteUserFromCognito(user.uid);
 
             router.push('/login');
         } catch (error: any) {
             console.error('Error deleting account:', error);
-            if (error.code === 'auth/requires-recent-login') {
-                alert('For security, please log out and log back in before deleting your account.');
-            }
+            alert('Failed to delete account. Please try again or contact support.');
         } finally {
             setDeleteLoading(false);
         }

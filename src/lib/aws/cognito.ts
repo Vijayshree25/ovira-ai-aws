@@ -10,6 +10,12 @@ import {
 import { cognitoConfig } from './config';
 
 // Initialize Cognito User Pool
+console.log('Cognito Config:', {
+    UserPoolId: cognitoConfig.userPoolId,
+    ClientId: cognitoConfig.clientId,
+    Region: cognitoConfig.region
+});
+
 const userPool = new CognitoUserPool({
     UserPoolId: cognitoConfig.userPoolId,
     ClientId: cognitoConfig.clientId,
@@ -29,6 +35,8 @@ export async function signUpUser(
     displayName: string
 ): Promise<CognitoUser> {
     return new Promise((resolve, reject) => {
+        console.log('Attempting signup with:', { email, displayName, passwordLength: password.length });
+        
         const attributeList = [
             new CognitoUserAttribute({
                 Name: 'email',
@@ -42,6 +50,13 @@ export async function signUpUser(
 
         userPool.signUp(email, password, attributeList, [], (err, result) => {
             if (err) {
+                console.error('Cognito signup error:', err);
+                console.error('Error details:', {
+                    code: err.code,
+                    name: err.name,
+                    message: err.message,
+                    statusCode: err.statusCode
+                });
                 reject(err);
                 return;
             }
@@ -49,6 +64,7 @@ export async function signUpUser(
                 reject(new Error('Sign up failed'));
                 return;
             }
+            console.log('Signup successful:', result);
             resolve(result.user);
         });
     });
