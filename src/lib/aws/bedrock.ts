@@ -1,5 +1,12 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
-import { bedrockConfig } from './config';
+
+// Bedrock config - defined here (server-side only) to ensure non-NEXT_PUBLIC_ env vars are available.
+// These env vars are NOT accessible in 'use client' modules like config.ts.
+const bedrockConfig = {
+    modelId: process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240307-v1:0',
+    fallbackModelId: process.env.BEDROCK_FALLBACK_MODEL_ID || 'amazon.titan-text-express-v1',
+    region: process.env.BEDROCK_REGION || 'us-east-1',
+};
 
 // Server-side only - Initialize Bedrock client
 function getBedrockClient(): BedrockRuntimeClient {
@@ -27,7 +34,7 @@ function containsProhibitedTerms(text: string): boolean {
 // Sanitize AI response to ensure non-diagnostic output
 function sanitizeResponse(text: string): string {
     let sanitized = text;
-    
+
     // Replace diagnostic language with decision-support language
     sanitized = sanitized.replace(/\b(diagnos[ei]s?|diagnose[ds]?)\b/gi, 'pattern observation');
     sanitized = sanitized.replace(/\b(treatment|treat)\b/gi, 'management approach');
@@ -35,12 +42,12 @@ function sanitizeResponse(text: string): string {
     sanitized = sanitized.replace(/\b(prescribe[ds]?|prescription)\b/gi, 'recommendation');
     sanitized = sanitized.replace(/\b(disease|disorder|illness)\b/gi, 'condition');
     sanitized = sanitized.replace(/\b(medication|medicine|drug)\b/gi, 'option');
-    
+
     // Add decision-support disclaimer if not present
     if (!sanitized.includes('consult') && !sanitized.includes('healthcare provider')) {
         sanitized += '\n\nRemember: This is decision-support information only. Please consult with a healthcare provider for personalized medical advice.';
     }
-    
+
     return sanitized;
 }
 
@@ -54,11 +61,11 @@ export async function invokeClaude(
 
     // Build messages array
     const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
-    
+
     if (conversationHistory) {
         messages.push(...conversationHistory);
     }
-    
+
     messages.push({
         role: 'user',
         content: prompt,
@@ -86,13 +93,13 @@ export async function invokeClaude(
 
         // Extract text from Claude response
         const text = responseBody.content?.[0]?.text || '';
-        
+
         // Apply medical safety guardrails
         if (containsProhibitedTerms(text)) {
             console.warn('Response contained prohibited medical terms, sanitizing...');
             return sanitizeResponse(text);
         }
-        
+
         return text;
     } catch (error) {
         console.error('Claude invocation error:', error);
@@ -125,13 +132,13 @@ export async function invokeTitan(prompt: string): Promise<string> {
         const responseBody = JSON.parse(new TextDecoder().decode(response.body));
 
         const text = responseBody.results?.[0]?.outputText || '';
-        
+
         // Apply medical safety guardrails
         if (containsProhibitedTerms(text)) {
             console.warn('Response contained prohibited medical terms, sanitizing...');
             return sanitizeResponse(text);
         }
-        
+
         return text;
     } catch (error) {
         console.error('Titan invocation error:', error);
@@ -150,10 +157,10 @@ export async function invokeAI(
         return await invokeClaude(prompt, systemPrompt, conversationHistory);
     } catch (claudeError) {
         console.error('Claude failed, trying Titan fallback:', claudeError);
-        
+
         try {
             // Fallback to Titan
-            const fullPrompt = systemPrompt 
+            const fullPrompt = systemPrompt
                 ? `${systemPrompt}\n\nUser: ${prompt}\nAssistant:`
                 : prompt;
             return await invokeTitan(fullPrompt);
@@ -214,13 +221,13 @@ Return JSON with this structure:
 
     try {
         const response = await invokeAI(prompt, systemPrompt);
-        
+
         // Extract JSON from response
         const jsonMatch = response.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             return JSON.parse(jsonMatch[0]);
         }
-        
+
         throw new Error('Failed to parse AI response as JSON');
     } catch (error) {
         console.error('Health report generation error:', error);
