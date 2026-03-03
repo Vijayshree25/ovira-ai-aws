@@ -4,7 +4,6 @@ import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { S3Client } from '@aws-sdk/client-s3';
-import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
 
 // AWS Configuration
 export const awsConfig = {
@@ -33,12 +32,8 @@ export const s3Config = {
     region: process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1',
 };
 
-// Bedrock Configuration
-export const bedrockConfig = {
-    modelId: process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240307-v1:0',
-    fallbackModelId: process.env.BEDROCK_FALLBACK_MODEL_ID || 'amazon.titan-text-express-v1',
-    region: process.env.BEDROCK_REGION || 'us-east-1',
-};
+// Note: Bedrock config is defined in src/lib/aws/bedrock.ts (server-side only)
+// because it uses non-NEXT_PUBLIC_ env vars that are unavailable in client modules.
 
 // Function to get credentials
 function getCredentials() {
@@ -59,7 +54,7 @@ let cognitoClient: CognitoIdentityProviderClient | undefined;
 let dynamoDBClient: DynamoDBClient | undefined;
 let docClient: DynamoDBDocumentClient | undefined;
 let s3Client: S3Client | undefined;
-let bedrockClient: BedrockRuntimeClient | undefined;
+
 
 function initializeClients() {
     if (typeof window === 'undefined') return;
@@ -89,12 +84,6 @@ function initializeClients() {
         // Initialize S3 Client
         s3Client = new S3Client(clientConfig);
 
-        // Initialize Bedrock Client
-        bedrockClient = new BedrockRuntimeClient({
-            region: bedrockConfig.region,
-            ...(credentials && { credentials }),
-        });
-
         console.log('AWS clients initialized successfully');
     } catch (error) {
         console.error('AWS initialization error:', error);
@@ -112,7 +101,7 @@ export function reinitializeClients() {
 }
 
 // Export clients
-export { cognitoClient, dynamoDBClient, docClient, s3Client, bedrockClient };
+export { cognitoClient, dynamoDBClient, docClient, s3Client };
 
 // Type-safe getters
 export function getCognitoClient(): CognitoIdentityProviderClient {
@@ -145,14 +134,6 @@ export function getS3Client(): S3Client {
         if (!s3Client) throw new Error('S3 client not initialized');
     }
     return s3Client;
-}
-
-export function getBedrockClient(): BedrockRuntimeClient {
-    if (!bedrockClient) {
-        initializeClients();
-        if (!bedrockClient) throw new Error('Bedrock client not initialized');
-    }
-    return bedrockClient;
 }
 
 // Helper function to check if AWS is properly configured
