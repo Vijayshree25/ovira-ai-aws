@@ -29,6 +29,7 @@ interface AuthContextType {
     logout: () => Promise<void>;
     resetPassword: (email: string) => Promise<void>;
     completeOnboarding: (data: OnboardingData) => Promise<void>;
+    updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
     refreshUserProfile: () => Promise<void>;
     refreshUser: () => Promise<CognitoAuthUser | null>;
     clearError: () => void;
@@ -53,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             console.log('Fetching user profile for:', userId);
             let profile = await getUserProfile(userId);
-            
+
             // If profile doesn't exist, create a basic one
             if (!profile) {
                 console.log('Creating new user profile for:', userId);
@@ -69,11 +70,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     language: 'en',
                     ageRange: '25-34' as const,
                 };
-                
+
                 try {
                     await createUserProfile(newProfile);
                     console.log('New user profile created successfully');
-                    
+
                     // Fetch the newly created profile
                     profile = await getUserProfile(userId);
                 } catch (createError) {
@@ -82,17 +83,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     profile = newProfile as UserProfile;
                 }
             }
-            
+
             console.log('Setting user profile:', profile);
             setUserProfile(profile);
         } catch (err: any) {
             console.error('Error fetching user profile:', err);
-            
+
             // Don't show error for offline scenarios
             if (!err.message?.includes('offline') && !err.message?.includes('NetworkingError')) {
                 setError('Unable to load profile. Please check your connection.');
             }
-            
+
             // Set a minimal profile to prevent auth loops
             const fallbackProfile: UserProfile = {
                 id: userId,
@@ -106,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 language: 'en',
                 ageRange: '25-34',
             };
-            
+
             setUserProfile(fallbackProfile);
         }
     };
@@ -125,13 +126,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const idToken = localStorage.getItem('idToken');
                 const accessToken = localStorage.getItem('accessToken');
                 const userEmail = localStorage.getItem('userEmail');
-                
-                console.log('Stored auth data:', { 
-                    hasIdToken: !!idToken, 
+
+                console.log('Stored auth data:', {
+                    hasIdToken: !!idToken,
                     hasAccessToken: !!accessToken,
-                    userEmail 
+                    userEmail
                 });
-                
+
                 if (idToken && accessToken && userEmail) {
                     // Create user object from stored data
                     const authUser: CognitoAuthUser = {
@@ -140,7 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         attributes: { email: userEmail },
                         session: null as any, // We have tokens but not full session object
                     };
-                    
+
                     console.log('Setting user from stored tokens:', authUser);
                     setUser(authUser);
                     // Reinitialize AWS clients with new credentials
@@ -227,7 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Reinitialize AWS clients with new credentials
             reinitializeClients();
             await fetchUserProfile(email);
-            
+
             // Return the user object so caller can verify state is set
             return authUser;
         } catch (err: any) {
@@ -271,7 +272,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!user) throw new Error('No user logged in');
 
         console.log('Completing onboarding for user:', user.username);
-        
+
         const updates: Partial<UserProfile> = {
             ageRange: data.ageRange,
             conditions: data.conditions,
@@ -281,12 +282,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         await updateUserProfileDB(user.username, updates);
         console.log('Profile updated in DynamoDB');
-        
+
         setUserProfile((prev) => {
             const updated = prev ? { ...prev, ...updates } : null;
             console.log('Updated userProfile state:', updated);
             return updated;
         });
+    };
+
+    // Update user profile in DynamoDB and local state
+    const updateProfile = async (updates: Partial<UserProfile>) => {
+        if (!user) throw new Error('No user logged in');
+
+        await updateUserProfileDB(user.username, updates);
+        setUserProfile((prev) => prev ? { ...prev, ...updates } : null);
     };
 
     // Refresh user profile
@@ -303,13 +312,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const idToken = localStorage.getItem('idToken');
             const accessToken = localStorage.getItem('accessToken');
             const userEmail = localStorage.getItem('userEmail');
-            
-            console.log('Stored tokens:', { 
-                hasIdToken: !!idToken, 
+
+            console.log('Stored tokens:', {
+                hasIdToken: !!idToken,
                 hasAccessToken: !!accessToken,
                 userEmail
             });
-            
+
             if (idToken && accessToken && userEmail) {
                 const authUser: CognitoAuthUser = {
                     username: userEmail,
@@ -317,13 +326,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     attributes: { email: userEmail },
                     session: null as any,
                 };
-                
+
                 console.log('Setting user from tokens:', authUser);
                 setUser(authUser);
                 // Reinitialize AWS clients with new credentials
                 reinitializeClients();
                 await fetchUserProfile(userEmail);
-                
+
                 return authUser;
             }
             console.log('No tokens found');
@@ -347,6 +356,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 logout,
                 resetPassword,
                 completeOnboarding,
+                updateProfile,
                 refreshUserProfile,
                 refreshUser,
                 clearError,

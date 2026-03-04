@@ -23,7 +23,7 @@ import {
 import Link from 'next/link';
 
 export default function SettingsPage() {
-    const { user, userProfile, refreshUserProfile, logout } = useAuth();
+    const { user, userProfile, updateProfile, logout } = useAuth();
     const router = useRouter();
 
     const [loading, setLoading] = useState(false);
@@ -32,7 +32,19 @@ export default function SettingsPage() {
     const [deleteLoading, setDeleteLoading] = useState(false);
 
     // Form state
-    const [displayName, setDisplayName] = useState(userProfile?.displayName || '');
+    // Smart first name extraction: if displayName looks like an email prefix (one word, no spaces),
+    // try to extract a proper name by capitalizing the first letter
+    const getInitialDisplayName = () => {
+        const name = userProfile?.displayName || '';
+        if (name && name.includes(' ')) return name; // already has spaces, use as-is
+        if (name) {
+            // Capitalize first letter for display
+            return name.charAt(0).toUpperCase() + name.slice(1);
+        }
+        return '';
+    };
+
+    const [displayName, setDisplayName] = useState(getInitialDisplayName());
     const [language, setLanguage] = useState(userProfile?.language || 'en');
     const [cycleLength, setCycleLength] = useState(userProfile?.averageCycleLength || 28);
 
@@ -41,14 +53,12 @@ export default function SettingsPage() {
 
         setLoading(true);
         try {
-            // TODO: Update user profile in DynamoDB
-            // await updateUserProfile(user.uid, {
-            //     displayName: displayName.trim(),
-            //     language,
-            //     averageCycleLength: cycleLength,
-            // });
+            await updateProfile({
+                displayName: displayName.trim(),
+                language,
+                averageCycleLength: cycleLength,
+            });
 
-            await refreshUserProfile();
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
         } catch (error) {
@@ -65,7 +75,7 @@ export default function SettingsPage() {
         try {
             // TODO: Fetch all user data from DynamoDB
             // const logs = await fetchAllLogsFromDynamoDB(user.uid);
-            
+
             const exportData = {
                 profile: userProfile,
                 logs: [],
