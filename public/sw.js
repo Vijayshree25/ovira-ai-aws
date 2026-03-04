@@ -129,3 +129,121 @@ async function navigationHandler(request) {
         return caches.match(OFFLINE_URL);
     }
 }
+
+// ═══════════════════════════════════════════════════════
+// ─── Offline Notifications & Reminders ───
+// ═══════════════════════════════════════════════════════
+
+// In-memory store for reminder settings (synced from main app)
+let reminderSettings = null;
+let lastDailyLogNotif = 0;
+let lastHydrationNotif = 0;
+let lastMedNotifs = {};
+
+// ─── Listen for messages from the app ───
+self.addEventListener('message', (event) => {
+    const { type } = event.data;
+
+    if (type === 'SHOW_NOTIFICATION') {
+        const { title, body, actionUrl } = event.data;
+        self.registration.showNotification(title, {
+            body,
+            icon: '/icons/icon-192x192.png',
+            badge: '/icons/icon-192x192.png',
+            vibrate: [200, 100, 200],
+            tag: 'ovira-' + Date.now(),
+            data: { actionUrl: actionUrl || '/notifications' },
+        });
+    }
+
+    if (type === 'SYNC_REMINDER_SETTINGS') {
+        reminderSettings = event.data.settings;
+        console.log('[SW] Reminder settings synced:', reminderSettings);
+    }
+});
+
+// ─── Handle notification click: open the app ───
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const url = event.notification.data?.actionUrl || '/dashboard';
+
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+            // Focus existing window if open
+            for (const client of clients) {
+                if (client.url.includes(self.location.origin)) {
+                    client.focus();
+                    client.navigate(url);
+                    return;
+                }
+            }
+            // Otherwise open new window
+            return self.clients.openWindow(url);
+        })
+    );
+});
+
+// ─── Periodic offline reminder check (runs every 60s) ───
+function checkOfflineReminders() {
+    if (!reminderSettings) return;
+
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    // Daily log reminder
+    if (reminderSettings.dailyLog?.enabled) {
+        const [h, m] = reminderSettings.dailyLog.time.split(':').map(Number);
+        const targetMinutes = h * 60 + m;
+        if (Math.abs(currentMinutes - targetMinutes) <= 2 && (Date.now() - lastDailyLogNotif) > 300000) {
+            self.registration.showNotification('📝 Time to Log Your Symptoms', {
+                body: 'Track how you\'re feeling today for better health insights.',
+                icon: '/icons/icon-192x192.png',
+                badge: '/icons/icon-192x192.png',
+                vibrate: [200, 100, 200],
+                tag: 'ovira-daily-log',
+                data: { actionUrl: '/log' },
+            });
+            lastDailyLogNotif = Date.now();
+        }
+    }
+
+    // Medication reminders
+    if (reminderSettings.medications?.length) {
+        for (const med of reminderSettings.medications) {
+            if (!med.enabled) continue;
+            const [h, m] = med.time.split(':').map(Number);
+            const targetMinutes = h * 60 + m;
+            const lastSent = lastMedNotifs[med.id] || 0;
+            if (Math.abs(currentMinutes - targetMinutes) <= 2 && (Date.now() - lastSent) > 300000) {
+                self.registration.showNotification(`💊 ${med.label} Reminder`, {
+                    body: `It's time to take your ${med.label}.`,
+                    icon: '/icons/icon-192x192.png',
+                    badge: '/icons/icon-192x192.png',
+                    vibrate: [200, 100, 200],
+                    tag: 'ovira-med-' + med.id,
+                    data: { actionUrl: '/notifications' },
+                });
+                lastMedNotifs[med.id] = Date.now();
+            }
+        }
+    }
+
+    // Hydration reminder (interval-based, runs anytime settings say so)
+    if (reminderSettings.hydration?.enabled) {
+        const intervalMs = (reminderSettings.hydration.intervalMinutes || 60) * 60 * 1000;
+        if ((Date.now() - lastHydrationNotif) >= intervalMs) {
+            self.registration.showNotification('💧 Stay Hydrated', {
+                body: 'Drink some water to stay healthy and energized.',
+                icon: '/icons/icon-192x192.png',
+                badge: '/icons/icon-192x192.png',
+                vibrate: [200, 100, 200],
+                tag: 'ovira-hydration',
+                data: { actionUrl: '/notifications' },
+            });
+            lastHydrationNotif = Date.now();
+        }
+    }
+}
+
+// Run reminder checks every 60 seconds
+setInterval(checkOfflineReminders, 60000);
