@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +11,9 @@ import {
 } from '@/lib/utils';
 import { getCurrentCycleInfo, calculateLoggingStreak, CycleInfo } from '@/lib/utils/cycle-analysis';
 import {
+    loadNotifications, dismissNotification, getUnreadCount, AppNotification
+} from '@/lib/utils/notifications';
+import {
     Calendar,
     MessageCircle,
     FileText,
@@ -20,7 +23,13 @@ import {
     Moon,
     Sparkles,
     ChevronRight,
-    AlertCircle
+    AlertCircle,
+    Bell,
+    Clock,
+    Droplets,
+    Pill,
+    X,
+    Settings
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -30,6 +39,27 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [streak, setStreak] = useState(0);
     const [cycleInfo, setCycleInfo] = useState<CycleInfo | null>(null);
+    const [bellOpen, setBellOpen] = useState(false);
+    const [notifications, setNotifications] = useState<AppNotification[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const bellRef = useRef<HTMLDivElement>(null);
+
+    // Refresh notification state
+    const refreshNotifs = () => {
+        setNotifications(loadNotifications());
+        setUnreadCount(getUnreadCount());
+    };
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+                setBellOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     useEffect(() => {
         const fetchRecentLogs = async () => {
@@ -128,7 +158,82 @@ export default function DashboardPage() {
                         Here&apos;s your health overview for today
                     </p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex items-center gap-3">
+                    {/* Bell icon with dropdown */}
+                    <div className="relative" ref={bellRef}>
+                        <button
+                            onClick={() => { setBellOpen(!bellOpen); refreshNotifs(); }}
+                            className="relative p-2.5 rounded-xl bg-surface-elevated hover:bg-primary/10 transition-colors"
+                        >
+                            <Bell size={20} />
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 bg-accent text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                            )}
+                        </button>
+
+                        {/* Dropdown */}
+                        {bellOpen && (
+                            <div className="absolute right-0 top-full mt-2 w-80 bg-surface border border-border rounded-2xl shadow-xl z-50 overflow-hidden animate-fade-in">
+                                <div className="p-4 border-b border-border flex items-center justify-between">
+                                    <h3 className="font-semibold text-sm">Notifications</h3>
+                                    {unreadCount > 0 && (
+                                        <span className="text-xs text-accent font-medium">{unreadCount} new</span>
+                                    )}
+                                </div>
+                                <div className="max-h-72 overflow-y-auto">
+                                    {notifications.length === 0 ? (
+                                        <div className="p-6 text-center text-text-muted text-sm">
+                                            No notifications yet
+                                        </div>
+                                    ) : (
+                                        notifications.slice(0, 5).map(notif => {
+                                            const iconMap: Record<string, React.ReactNode> = {
+                                                period: <Calendar className="w-4 h-4 text-accent" />,
+                                                'daily-log': <Clock className="w-4 h-4 text-warning" />,
+                                                medication: <Pill className="w-4 h-4 text-secondary" />,
+                                                hydration: <Droplets className="w-4 h-4 text-info" />,
+                                            };
+                                            const time = new Date(notif.timestamp);
+                                            const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                            return (
+                                                <div
+                                                    key={notif.id}
+                                                    className={`flex items-start gap-3 px-4 py-3 hover:bg-surface-elevated transition-colors ${!notif.read ? 'bg-primary/5' : ''}`}
+                                                >
+                                                    <div className="w-8 h-8 rounded-lg bg-surface-elevated flex items-center justify-center flex-shrink-0 mt-0.5">
+                                                        {iconMap[notif.type] || <Bell className="w-4 h-4" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className={`text-xs ${!notif.read ? 'font-semibold' : 'text-text-secondary'}`}>{notif.title}</p>
+                                                        <p className="text-[11px] text-text-muted mt-0.5 truncate">{notif.body}</p>
+                                                        <p className="text-[10px] text-text-muted mt-0.5">{timeStr}</p>
+                                                    </div>
+                                                    {!notif.read && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); dismissNotification(notif.id); refreshNotifs(); }}
+                                                            className="p-1 rounded hover:bg-surface text-text-muted hover:text-text-primary"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                                <Link
+                                    href="/notifications"
+                                    onClick={() => setBellOpen(false)}
+                                    className="flex items-center justify-center gap-2 p-3 border-t border-border text-xs font-medium text-primary hover:bg-primary/5 transition-colors"
+                                >
+                                    <Settings size={14} />
+                                    Notification Settings
+                                </Link>
+                            </div>
+                        )}
+                    </div>
                     <Link href="/log">
                         <Button leftIcon={<Calendar size={18} />}>Log Symptoms</Button>
                     </Link>
