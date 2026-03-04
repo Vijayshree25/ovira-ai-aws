@@ -52,16 +52,16 @@ export default function LoginPage() {
                 localStorage.setItem('idToken', data.authenticationResult.IdToken);
                 localStorage.setItem('accessToken', data.authenticationResult.AccessToken);
                 localStorage.setItem('refreshToken', data.authenticationResult.RefreshToken);
-                
+
                 // Also store email for session reconstruction
                 localStorage.setItem('userEmail', email);
-                
+
                 // Wait for AuthContext to initialize user state
                 await refreshUser();
-                
+
                 // Small delay to ensure state is set
                 await new Promise(resolve => setTimeout(resolve, 300));
-                
+
                 // Redirect after state is set
                 router.push('/dashboard');
             } else {
@@ -70,7 +70,7 @@ export default function LoginPage() {
         } catch (err: any) {
             console.error('Authentication error:', err);
             const errorMsg = getErrorMessage(err.message || err.error);
-            
+
             // Special handling for unverified users
             if (errorMsg === 'UNVERIFIED_USER') {
                 setError('Your email is not verified. Redirecting to verification page...');
@@ -115,18 +115,18 @@ export default function LoginPage() {
                 localStorage.setItem('accessToken', data.authenticationResult.AccessToken);
                 localStorage.setItem('refreshToken', data.authenticationResult.RefreshToken);
                 localStorage.setItem('userEmail', email);
-                
+
                 // Wait for AuthContext to initialize user state
                 await refreshUser();
-                
+
                 // Small delay to ensure state is set
                 await new Promise(resolve => setTimeout(resolve, 300));
-                
+
                 // Clear form data
                 setEmail('');
                 setPassword('');
                 setOtpCode('');
-                
+
                 // Redirect after state is set
                 router.push('/dashboard');
             } else {
@@ -155,7 +155,7 @@ export default function LoginPage() {
                             {authStep === 'initial' ? 'Welcome Back' : 'Verify Your Email'}
                         </CardTitle>
                         <CardDescription>
-                            {authStep === 'initial' 
+                            {authStep === 'initial'
                                 ? 'Sign in to continue tracking your health'
                                 : `We sent a verification code to ${email}`
                             }
@@ -229,7 +229,14 @@ export default function LoginPage() {
                     </CardContent>
                 </Card>
 
-                <p className="mt-6 text-center text-xs text-gray-500 px-4">
+                <p className="mt-4 text-center text-sm text-gray-600">
+                    Don&apos;t have an account?{' '}
+                    <a href="/signup" className="font-semibold text-teal-600 hover:text-teal-700 transition-colors">
+                        Sign Up
+                    </a>
+                </p>
+
+                <p className="mt-4 text-center text-xs text-gray-500 px-4">
                     By signing in, you agree to our Terms of Service and Privacy Policy
                 </p>
             </div>
