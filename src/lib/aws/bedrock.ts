@@ -1,5 +1,27 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
+// Result type for all AI invocations — includes metadata about which model responded
+export interface InvokeResult {
+    response: string;
+    model_used: string; // "claude-3-5-haiku" | "nova-lite" | "static-fallback"
+    attempts: number;
+}
+
+// Simple sleep utility for exponential backoff
+function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Check if an error is retryable (throttling or service unavailable)
+function isRetryableError(error: any): boolean {
+    const retryableNames = ['ThrottlingException', 'ServiceUnavailableException'];
+    return (
+        retryableNames.includes(error?.name) ||
+        retryableNames.includes(error?.__type) ||
+        retryableNames.includes(error?.Code)
+    );
+}
+
 // Bedrock config - defined here (server-side only) to ensure non-NEXT_PUBLIC_ env vars are available.
 // These env vars are NOT accessible in 'use client' modules like config.ts.
 const bedrockConfig = {
@@ -151,36 +173,72 @@ export async function invokeTitan(prompt: string): Promise<string> {
     }
 }
 
-// Main function to invoke AI with fallback
+// Core retry wrapper with exponential backoff and fallback chain
+export async function invokeWithRetry(
+    fn: () => Promise<string>,
+    fallbackMessage: string,
+    maxAttempts: number = 3
+): Promise<InvokeResult> {
+    let lastError: any;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            console.log(`[${new Date().toISOString()}] Attempt ${attempt}/${maxAttempts} — invoking Claude...`);
+            const response = await fn();
+            console.log(`[${new Date().toISOString()}] Claude succeeded on attempt ${attempt}`);
+            return { response, model_used: 'claude-3-5-haiku', attempts: attempt };
+        } catch (error: any) {
+            lastError = error;
+            console.error(`[${new Date().toISOString()}] Attempt ${attempt} failed:`, error?.name || error?.message);
+
+            if (!isRetryableError(error)) {
+                console.log(`[${new Date().toISOString()}] Non-retryable error, skipping to fallback chain`);
+                break;
+            }
+
+            if (attempt < maxAttempts) {
+                const backoffMs = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
+                console.log(`[${new Date().toISOString()}] Retryable error, waiting ${backoffMs}ms before retry...`);
+                await sleep(backoffMs);
+            }
+        }
+    }
+
+    // Fallback 1: Try Nova Lite
+    try {
+        console.log(`[${new Date().toISOString()}] Claude exhausted, trying Nova Lite fallback...`);
+        const fullPrompt = fallbackMessage;
+        const response = await invokeTitan(fullPrompt);
+        console.log(`[${new Date().toISOString()}] Nova Lite fallback succeeded`);
+        return { response, model_used: 'nova-lite', attempts: maxAttempts };
+    } catch (titanError: any) {
+        console.error(`[${new Date().toISOString()}] Nova Lite also failed:`, titanError?.name || titanError?.message);
+    }
+
+    // Fallback 2: Keyword-based static response
+    console.log(`[${new Date().toISOString()}] All AI models failed, returning static fallback response`);
+    const staticResponse = getFallbackResponse(fallbackMessage);
+    return { response: staticResponse, model_used: 'static-fallback', attempts: maxAttempts };
+}
+
+// Main function to invoke AI with retry + fallback
 export async function invokeAI(
     prompt: string,
     systemPrompt?: string,
     conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
-): Promise<string> {
-    try {
-        // Try Claude first
-        return await invokeClaude(prompt, systemPrompt, conversationHistory);
-    } catch (claudeError) {
-        console.error('Claude failed, trying Titan fallback:', claudeError);
-
-        try {
-            // Fallback to Titan
-            const fullPrompt = systemPrompt
-                ? `${systemPrompt}\n\nUser: ${prompt}\nAssistant:`
-                : prompt;
-            return await invokeTitan(fullPrompt);
-        } catch (titanError) {
-            console.error('Titan also failed:', titanError);
-            throw new Error('AI service unavailable. Please try again later.');
-        }
-    }
+): Promise<InvokeResult> {
+    const fn = () => invokeClaude(prompt, systemPrompt, conversationHistory);
+    const fallbackPrompt = systemPrompt
+        ? `${systemPrompt}\n\nUser: ${prompt}\nAssistant:`
+        : prompt;
+    return invokeWithRetry(fn, fallbackPrompt);
 }
 
 // Generate health report summary using AI
 export async function generateHealthReportSummary(
     symptomData: string,
     userContext: string
-): Promise<any> {
+): Promise<InvokeResult> {
     const systemPrompt = `You are a medical data analyst AI. Generate a comprehensive, doctor-friendly health report based on symptom logs.
 
 CRITICAL RULES:
@@ -225,15 +283,8 @@ Return JSON with this structure:
     const prompt = `${userContext}\n\n${symptomData}\n\nGenerate a comprehensive health report following the JSON structure. Focus on statistical patterns and decision-support insights.`;
 
     try {
-        const response = await invokeAI(prompt, systemPrompt);
-
-        // Extract JSON from response
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            return JSON.parse(jsonMatch[0]);
-        }
-
-        throw new Error('Failed to parse AI response as JSON');
+        const result = await invokeAI(prompt, systemPrompt);
+        return result;
     } catch (error) {
         console.error('Health report generation error:', error);
         throw error;
@@ -245,7 +296,7 @@ export async function chatWithAI(
     message: string,
     conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
     userContext?: string
-): Promise<string> {
+): Promise<InvokeResult> {
     const systemPrompt = `You are Ovira AI, a compassionate women's health assistant providing educational information and decision-support.
 
 CRITICAL GUIDELINES:
@@ -268,7 +319,7 @@ TOPICS YOU CAN HELP WITH:
 
 ${userContext ? `\nUser Context: ${userContext}` : ''}`;
 
-    return await invokeAI(message, systemPrompt, conversationHistory);
+    return invokeAI(message, systemPrompt, conversationHistory);
 }
 
 // Fallback responses when AI is unavailable

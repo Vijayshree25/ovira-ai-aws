@@ -81,24 +81,44 @@ CALCULATED STATISTICS:
 - Most Common Symptoms: ${stats.topSymptoms.join(', ') || 'None recorded'}
 `;
 
-            const reportData = await generateHealthReportSummary(symptomData, userContext);
+            const { response: aiResponse, model_used, attempts } = await generateHealthReportSummary(symptomData, userContext);
 
-            // Add metadata
-            reportData.generatedAt = new Date().toISOString();
-            reportData.periodStart = logs[logs.length - 1]?.date;
-            reportData.periodEnd = logs[0]?.date;
-            reportData.totalLogsAnalyzed = logs.length;
-            reportData.patientInfo = {
-                name: userProfile.displayName || 'Patient',
-                ageRange: userProfile.ageRange,
-                conditions: userProfile.conditions || [],
-                averageCycleLength: userProfile.averageCycleLength || 28
-            };
-            reportData.statistics = stats;
+            // If we got a static fallback, skip JSON parsing and use the fallback report
+            if (model_used === 'static-fallback') {
+                console.log('AI returned static fallback, using generated fallback report');
+                const fallbackReport = generateFallbackReport(logs, userProfile, stats);
+                return NextResponse.json({ ...fallbackReport, model_used, attempts });
+            }
 
-            return NextResponse.json(reportData);
+            // Try to parse JSON from AI response
+            const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                const reportData = JSON.parse(jsonMatch[0]);
+
+                // Add metadata
+                reportData.generatedAt = new Date().toISOString();
+                reportData.periodStart = logs[logs.length - 1]?.date;
+                reportData.periodEnd = logs[0]?.date;
+                reportData.totalLogsAnalyzed = logs.length;
+                reportData.patientInfo = {
+                    name: userProfile.displayName || 'Patient',
+                    ageRange: userProfile.ageRange,
+                    conditions: userProfile.conditions || [],
+                    averageCycleLength: userProfile.averageCycleLength || 28
+                };
+                reportData.statistics = stats;
+                reportData.model_used = model_used;
+                reportData.attempts = attempts;
+
+                return NextResponse.json(reportData);
+            }
+
+            // JSON parsing failed — use fallback report
+            console.warn('Failed to parse AI response as JSON, using fallback report');
+            const fallbackReport = generateFallbackReport(logs, userProfile, stats);
+            return NextResponse.json({ ...fallbackReport, model_used, attempts });
         } catch (aiError) {
-            // AI failed - log it and return fallback
+            // AI failed entirely — log it and return fallback
             console.error('Bedrock AI generation failed, using fallback:', aiError);
             return NextResponse.json(generateFallbackReport(logs, userProfile, stats));
         }

@@ -72,18 +72,10 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        try {
-            // Call Bedrock AI
-            const aiResponse = await chatWithAI(message, conversationHistory, contextString);
+        // Call Bedrock AI with built-in retry + fallback
+        const { response, model_used, attempts } = await chatWithAI(message, conversationHistory, contextString);
 
-            return NextResponse.json({ message: aiResponse });
-        } catch (aiError) {
-            console.error('Bedrock AI error:', aiError);
-            // Return fallback response if AI fails
-            return NextResponse.json({
-                message: getFallbackResponse(message),
-            });
-        }
+        return NextResponse.json({ message: response, model_used, attempts });
 
     } catch (error) {
         console.error('Chat API error:', error);

@@ -241,8 +241,8 @@ export async function getUserSymptomLogs(userId: string, limit: number = 100): P
 
             // Sort by timestamp descending (newest first)
             return logs.sort((a, b) => {
-                const aTime = a.timestamp || new Date(a.date).getTime();
-                const bTime = b.timestamp || new Date(b.date).getTime();
+                const aTime = a.createdAt ? new Date(a.createdAt).getTime() : new Date(a.date).getTime();
+                const bTime = b.createdAt ? new Date(b.createdAt).getTime() : new Date(b.date).getTime();
                 return bTime - aTime;
             });
         } catch (scanError) {
