@@ -274,15 +274,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         console.log('Completing onboarding for user:', user.username);
 
+        // Build a partial profile from the onboarding data to compute health context
+        const profileSnapshot: UserProfile = {
+            uid: user.username,
+            email: user.email || user.username,
+            displayName: userProfile?.displayName,
+            ageRange: data.ageRange,
+            conditions: data.conditions,
+            language: data.language,
+            onboardingComplete: true,
+            createdAt: userProfile?.createdAt || new Date().toISOString(),
+            averageCycleLength: data.periodDuration ? Math.round(28) : 28,
+            activityLevel: data.activityLevel,
+            heightRange: data.heightRange,
+            lastPeriodStart: data.lastPeriodStart,
+            previousPeriodDates: data.previousPeriodDates,
+            avgCycleLength: data.periodDuration,
+            cycleRegularity: data.cycleRegularity,
+            dietType: data.dietType,
+            stapleGrain: data.stapleGrain,
+            ironRichFoodFrequency: data.ironRichFoodFrequency,
+            waterIntake: data.waterIntake,
+            caffeineIntake: data.caffeineIntake,
+            sleepHabit: data.sleepHabit,
+            recentPainLevel: data.recentPainLevel,
+            recentMoodPattern: data.recentMoodPattern,
+            regularSymptoms: data.regularSymptoms,
+            hasDoctorConsultation: data.hasDoctorConsultation,
+            personalGoal: data.personalGoal,
+        };
+
+        // Generate health context summary for AI personalisation
+        const { buildHealthContext } = await import('@/lib/buildHealthContext');
+        const healthContextSummary = buildHealthContext(profileSnapshot);
+
         const updates: Partial<UserProfile> = {
             ageRange: data.ageRange,
             conditions: data.conditions,
             language: data.language,
             onboardingComplete: true,
+            activityLevel: data.activityLevel,
+            heightRange: data.heightRange,
+            lastPeriodStart: data.lastPeriodStart,
+            previousPeriodDates: data.previousPeriodDates,
+            avgCycleLength: data.periodDuration,
+            cycleRegularity: data.cycleRegularity,
+            dietType: data.dietType,
+            stapleGrain: data.stapleGrain,
+            ironRichFoodFrequency: data.ironRichFoodFrequency,
+            waterIntake: data.waterIntake,
+            caffeineIntake: data.caffeineIntake,
+            sleepHabit: data.sleepHabit,
+            recentPainLevel: data.recentPainLevel,
+            recentMoodPattern: data.recentMoodPattern,
+            regularSymptoms: data.regularSymptoms,
+            hasDoctorConsultation: data.hasDoctorConsultation,
+            personalGoal: data.personalGoal,
+            healthContextSummary,
         };
 
         await updateUserProfileDB(user.username, updates);
-        console.log('Profile updated in DynamoDB');
+        console.log('Profile updated in DynamoDB with health context');
 
         setUserProfile((prev) => {
             const updated = prev ? { ...prev, ...updates } : null;

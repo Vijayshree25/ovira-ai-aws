@@ -21,7 +21,7 @@ export default function LoginPage() {
     const [session, setSession] = useState<string>('');
 
     const router = useRouter();
-    const { refreshUser } = useAuth();
+    const { refreshUser, userProfile } = useAuth();
 
     const handleEmailPasswordSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -60,10 +60,22 @@ export default function LoginPage() {
                 await refreshUser();
 
                 // Small delay to ensure state is set
-                await new Promise(resolve => setTimeout(resolve, 300));
+                await new Promise(resolve => setTimeout(resolve, 500));
 
-                // Redirect after state is set
-                router.push('/dashboard');
+                // Check if user needs onboarding
+                const storedEmail = localStorage.getItem('userEmail') || email;
+                try {
+                    const profileRes = await fetch(`/api/user/profile?userId=${encodeURIComponent(storedEmail)}`);
+                    const profileData = await profileRes.json();
+                    if (profileData.success && profileData.profile && profileData.profile.onboardingComplete) {
+                        router.push('/dashboard');
+                    } else {
+                        router.push('/onboarding');
+                    }
+                } catch {
+                    // Fallback: let dashboard layout handle the redirect
+                    router.push('/dashboard');
+                }
             } else {
                 throw new Error('No authentication result or challenge received');
             }
@@ -120,15 +132,26 @@ export default function LoginPage() {
                 await refreshUser();
 
                 // Small delay to ensure state is set
-                await new Promise(resolve => setTimeout(resolve, 300));
+                await new Promise(resolve => setTimeout(resolve, 500));
 
                 // Clear form data
                 setEmail('');
                 setPassword('');
                 setOtpCode('');
 
-                // Redirect after state is set
-                router.push('/dashboard');
+                // Check if user needs onboarding
+                const storedEmail = localStorage.getItem('userEmail') || email;
+                try {
+                    const profileRes = await fetch(`/api/user/profile?userId=${encodeURIComponent(storedEmail)}`);
+                    const profileData = await profileRes.json();
+                    if (profileData.success && profileData.profile && profileData.profile.onboardingComplete) {
+                        router.push('/dashboard');
+                    } else {
+                        router.push('/onboarding');
+                    }
+                } catch {
+                    router.push('/dashboard');
+                }
             } else {
                 throw new Error('No authentication result received');
             }

@@ -13,7 +13,7 @@ function VerifyContent() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
-    
+
     const router = useRouter();
     const searchParams = useSearchParams();
     const email = searchParams.get('email') || '';
@@ -36,6 +36,7 @@ function VerifyContent() {
                 throw new Error(data.error || 'Verification failed');
             }
 
+            // Handle already-verified case the same as fresh verification
             setSuccess(true);
             setTimeout(() => {
                 router.push('/login');
@@ -109,11 +110,10 @@ function VerifyContent() {
 
                     <CardContent>
                         {error && (
-                            <div className={`mb-4 p-3 rounded-lg border text-sm ${
-                                error.includes('sent') 
+                            <div className={`mb-4 p-3 rounded-lg border text-sm ${error.includes('sent')
                                     ? 'bg-success/10 border-success/20 text-success'
                                     : 'bg-error/10 border-error/20 text-error'
-                            }`}>
+                                }`}>
                                 {error}
                             </div>
                         )}

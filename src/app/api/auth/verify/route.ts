@@ -38,17 +38,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true });
     } catch (error: any) {
         console.error('Verification error:', error);
-        
+
         let errorMessage = 'Verification failed. Please try again.';
-        
-        if (error.name === 'CodeMismatchException') {
+
+        if (error.name === 'NotAuthorizedException') {
+            // User is already verified — treat as success
+            return NextResponse.json({ success: true, alreadyVerified: true });
+        } else if (error.name === 'CodeMismatchException') {
             errorMessage = 'Invalid verification code. Please check and try again.';
         } else if (error.name === 'ExpiredCodeException') {
             errorMessage = 'Verification code has expired. Please request a new one.';
-        } else if (error.name === 'NotAuthorizedException') {
-            errorMessage = 'User is already verified or code is invalid.';
         }
-        
+
         return NextResponse.json(
             {
                 success: false,

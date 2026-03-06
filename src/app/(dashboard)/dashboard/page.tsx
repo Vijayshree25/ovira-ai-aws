@@ -29,9 +29,11 @@ import {
     Droplets,
     Pill,
     X,
-    Settings
+    Settings,
+    PartyPopper
 } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
     const { user, userProfile, loading: authLoading } = useAuth();
@@ -43,6 +45,21 @@ export default function DashboardPage() {
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const bellRef = useRef<HTMLDivElement>(null);
+    const [welcomeToast, setWelcomeToast] = useState(false);
+    const searchParams = useSearchParams();
+    const dashRouter = useRouter();
+
+    // Welcome toast from onboarding
+    useEffect(() => {
+        if (searchParams.get('welcome') === 'true') {
+            setWelcomeToast(true);
+            // Clean up the URL
+            dashRouter.replace('/dashboard');
+            // Auto-dismiss after 6s
+            const timer = setTimeout(() => setWelcomeToast(false), 6000);
+            return () => clearTimeout(timer);
+        }
+    }, [searchParams, dashRouter]);
 
     // Refresh notification state
     const refreshNotifs = () => {
@@ -148,6 +165,30 @@ export default function DashboardPage() {
 
     return (
         <div className="max-w-6xl mx-auto space-y-6">
+            {/* Welcome toast from onboarding */}
+            {welcomeToast && (
+                <div className="fixed top-4 right-4 z-50 animate-slide-in-up">
+                    <div className="flex items-start gap-3 bg-surface border border-primary/30 shadow-xl rounded-2xl p-4 max-w-sm">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <PartyPopper className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm">
+                                Welcome, {userProfile?.displayName?.split(' ')[0] || 'there'}! 🎉
+                            </p>
+                            <p className="text-xs text-text-secondary mt-0.5">
+                                Your AI companion is now personalised for you.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setWelcomeToast(false)}
+                            className="p-1 rounded hover:bg-surface-elevated text-text-muted"
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
+                </div>
+            )}
             {/* Welcome Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>

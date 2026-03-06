@@ -5,13 +5,35 @@ export interface UserProfile {
     email: string;
     displayName?: string;
     photoURL?: string;
-    ageRange: '18-24' | '25-34' | '35-44' | '45+';
+    ageRange: '13-17' | '18-24' | '25-34' | '35-44' | '45+';
     conditions: string[];
     language: string;
     onboardingComplete: boolean;
     createdAt: string; // ISO 8601 string
     lastPeriodStart?: string; // ISO 8601 string
     averageCycleLength: number;
+    // About You (Step 2)
+    activityLevel?: string;
+    heightRange?: string;
+    // Cycle History (Step 3)
+    previousPeriodDates?: string[];
+    avgCycleLength?: number;
+    cycleRegularity?: string;
+    // Diet & Lifestyle (Step 5)
+    dietType?: string;
+    stapleGrain?: string;
+    ironRichFoodFrequency?: string;
+    waterIntake?: number;
+    caffeineIntake?: string;
+    sleepHabit?: string;
+    // Recent Symptoms (Step 6)
+    recentPainLevel?: string;
+    recentMoodPattern?: string;
+    regularSymptoms?: string[];
+    hasDoctorConsultation?: string;
+    personalGoal?: string;
+    // AI context
+    healthContextSummary?: string;
 }
 
 // Symptom Log
@@ -58,13 +80,36 @@ export interface ChatMessage {
     timestamp: string; // ISO 8601 string
 }
 
-// Onboarding Data
+// Onboarding Data — covers all 6 steps
 export interface OnboardingData {
-    ageRange: UserProfile['ageRange'];
-    conditions: string[];
+    // Step 1 — Welcome
     language: string;
     acceptedTerms: boolean;
     acceptedMedicalDisclaimer: boolean;
+    // Step 2 — About You
+    ageRange: UserProfile['ageRange'];
+    activityLevel: string;
+    heightRange: string;
+    // Step 3 — Cycle History
+    lastPeriodStart: string;
+    previousPeriodDates: string[];
+    periodDuration: number;
+    cycleRegularity: string;
+    // Step 4 — Health Conditions
+    conditions: string[];
+    // Step 5 — Diet & Lifestyle
+    dietType: string;
+    stapleGrain: string;
+    ironRichFoodFrequency: string;
+    waterIntake: number;
+    caffeineIntake: string;
+    sleepHabit: string;
+    // Step 6 — Recent Symptoms
+    recentPainLevel: string;
+    recentMoodPattern: string;
+    regularSymptoms: string[];
+    hasDoctorConsultation: string;
+    personalGoal: string;
 }
 
 // Health Conditions List
