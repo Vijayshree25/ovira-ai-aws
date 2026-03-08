@@ -9,15 +9,15 @@
 
 *Not a period tracker. A health companion that actually understands you.*
 
-![Next.js](https://nextjs.org/)
-![TypeScript](https://www.typescriptlang.org/)
-![AWS Bedrock](https://aws.amazon.com/bedrock/)
-![DynamoDB](https://aws.amazon.com/dynamodb/)
-![Tailwind CSS](https://tailwindcss.com/)
+[![Next.js](https://img.shields.io/badge/Next.js_15-000000?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![AWS Bedrock](https://img.shields.io/badge/Amazon_Bedrock-FF9900?style=flat-square&logo=amazonaws&logoColor=white)](https://aws.amazon.com/bedrock/)
+[![DynamoDB](https://img.shields.io/badge/DynamoDB-4053D6?style=flat-square&logo=amazondynamodb&logoColor=white)](https://aws.amazon.com/dynamodb/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 
-🏆 Built for AI for Bharat Hackathon 2025 — Powered by AWS
+**🏆 Built for AI for Bharat Hackathon 2025 — Powered by AWS**
 
-🚀 Live Demo · 📹 Demo Video · 📋 Docs · 🩷 Try as Priya
+[🚀 Live Demo](#) · [📹 Demo Video](#) · [📋 Docs](#architecture) · [🩷 Try as Priya](#demo-account)
 
 </div>
 
@@ -25,18 +25,18 @@
 
 ## 🌟 What is Ovira AI?
 
-Ovira AI is an Indian-first women's health intelligence platform that transforms daily symptom logs into personalised, doctor-ready health summaries — powered by a hybrid AI system built specifically for Indian women's health.
+Ovira AI is an **Indian-first women's health intelligence platform** that transforms daily symptom logs into personalised, doctor-ready health summaries — powered by a hybrid AI system built specifically for Indian women's health.
 
 > *180 million Indian women track their health on WhatsApp. Not a health app. WhatsApp.*
 > *Ovira exists to change that.*
 
-The core problem we solve:
+**The core problem we solve:**
 - 🩺 Women spend entire doctor appointments *explaining* their history instead of *getting help*
 - 🍚 No health app understands Indian diet context — rice vs roti, jaggery, dal, iron absorption
 - 🔬 Generic LLMs give generic advice — no app was trained on Indian menstrual health data
 - ❌ Every app either tracks periods OR talks to AI — nothing connects tracking → AI → doctor
 
-Ovira connects all three.
+**Ovira connects all three.**
 
 ---
 
@@ -44,20 +44,18 @@ Ovira connects all three.
 
 | Feature | Description |
 |---|---|
-| 📋 Rich Onboarding | Captures 3-month history, Indian diet (rice/roti), conditions, cycle data on Day 1 |
-| 🤖 Hybrid AI Routing | Domain queries → MenstLLaMA (SLM), General queries → Amazon Bedrock |
-| 🧬 MenstLLaMA on EC2 | Fine-tuned SLM on 23,820 Indian menstrual health Q&As — outperforms GPT-4 on this domain |
-| 📚 RAG Pipeline | Responses grounded in WHO, ACOG & NIH documents via Bedrock Knowledge Bases |
-| 📊 Pattern Analysis | Statistical engine flags health concerns — PCOS, anaemia, endometriosis, PMS/PMDD |
-| 📄 Health Reports | AI-generated doctor-ready summaries with concern flags & questions for your doctor |
-| 🗓️ Doctor Booking | Browse verified gynaecologists, book slots, share complete health summary before appointment |
-| 🔒 Privacy First | DPDP Act 2023 compliant — no PII sent to AI models, encrypted at rest |
+| 📋 **Rich Onboarding** | Captures 3-month history, Indian diet (rice/roti), conditions, cycle data on Day 1 |
+| 🤖 **Hybrid AI Routing** | Domain queries → MenstLLaMA (SLM), General queries → Amazon Bedrock |
+| 🧬 **MenstLLaMA on EC2** | Fine-tuned SLM on 23,820 Indian menstrual health Q&As — outperforms GPT-4 on this domain |
+| 📚 **RAG Pipeline** | Responses grounded in WHO, ACOG & NIH documents via Bedrock Knowledge Bases |
+| 📊 **Pattern Analysis** | Statistical engine flags health concerns — PCOS, anaemia, endometriosis, PMS/PMDD |
+| 📄 **Health Reports** | AI-generated doctor-ready summaries with concern flags & questions for your doctor |
+| 🗓️ **Doctor Booking** | Browse verified gynaecologists, book slots, share complete health summary before appointment |
+| 🔒 **Privacy First** | DPDP Act 2023 compliant — no PII sent to AI models, encrypted at rest |
 
 ---
 
 ## 🏗️ Architecture
-
-```
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -88,9 +86,8 @@ Ovira connects all three.
           │                  │
           ▼                  ▼
   ┌──────────────┐   ┌──────────────────────────────┐
-  │     EC2      │   │       Amazon Bedrock
-│
-│ MenstLLaMA  │   │  Claude 3 Haiku — AI chat     │
+  │     EC2      │   │       Amazon Bedrock          │
+  │ MenstLLaMA  │   │  Claude 3 Haiku — AI chat     │
   │             │   │  Nova Micro — Fallback         │
   │ Fine-tuned  │   │  Titan Embeddings — RAG        │
   │ 23,820 Q&As │   │  Knowledge Bases:              │
@@ -110,15 +107,14 @@ Ovira connects all three.
   │  Chat history   │     │  source files    │
   │  Appointments   │     │  (WHO, ACOG,NIH) │
   └─────────────────┘     └──────────────────┘
-copy
-
-
+```
 
 ---
 
 ## 🤖 The AI Stack — What Makes Ovira Different
 
 ### Hybrid AI Routing
+```
 User asks: "Why do I get cramps before my period?"
     → routeToSLM("cramps before period") = TRUE
     → MenstLLaMA on EC2
@@ -130,9 +126,7 @@ User asks: "How much water should I drink daily?"
     → Amazon Bedrock (Claude 3 Haiku + RAG)
     → Response grounded in WHO/ACOG/NIH documents
     → Citations shown to user
-copy
-
-
+```
 
 ### MenstLLaMA
 - **Base model:** LLaMA 3 8B Instruct, fine-tuned
@@ -159,6 +153,7 @@ healthContextSummary = `
   Personal goal: [goal].
   Iron-rich food intake: [frequency].
 `
+```
 *This is why Ovira says "Given your PCOS and rice-dominant diet..." — not "Here is some general advice."*
 
 ---
@@ -166,39 +161,34 @@ healthContextSummary = `
 ## 🛠️ Tech Stack
 
 ### Frontend
-copy
-
-
+```
 Next.js 15 (App Router)    — Framework, SSR, API routes
 TypeScript                  — Type safety throughout
 Tailwind CSS               — All styling and responsive design
 Lucide React               — Icon library
+```
 
 ### AWS Backend
-copy
-
-
+```
 Amazon Cognito             — Auth: signup, OTP, JWT, password reset
 Amazon DynamoDB            — Database: profiles, logs, chat, appointments
 Amazon Bedrock             — AI: Claude 3 Haiku, Nova Micro, Titan, Knowledge Bases
 Amazon S3                  — Storage: PDFs, knowledge base files
 Amazon EC2                 — Compute: MenstLLaMA inference server
 AWS SDK v3                 — @aws-sdk/client-* for all AWS connections
+```
 
 ### AI Models
-copy
-
-
+```
 Claude 3 Haiku             — Primary AI companion chat
 Nova Micro                 — Cost-efficient fallback
 Titan Text Embeddings v2   — RAG document vectorisation
 MenstLLaMA (EC2)           — Domain SLM for menstrual health queries
+```
 
 ---
 
 ## 📁 Project Structure
-
-```
 
 ```
 ovira-ai/
@@ -211,8 +201,7 @@ ovira-ai/
 │   │   │   ├── log/                # Daily symptom logging
 │   │   │   ├── reports/            # Health reports list
 │   │   │   ├── health-report/      # Report generation + view
-│
-│   │   ├── doctors/            # Browse + book gynaecologists
+│   │   │   ├── doctors/            # Browse + book gynaecologists
 │   │   │   ├── appointments/[id]/  # Appointment + health summary send
 │   │   │   ├── articles/           # AI-personalised health content
 │   │   │   ├── settings/           # Full health data hub
@@ -248,9 +237,7 @@ ovira-ai/
 ├── scripts/
 │   └── seed-demo-data.ts           # Seeds 365 days of data for Priya demo
 └── public/
-copy
-
-
+```
 
 ---
 
@@ -273,12 +260,11 @@ npm install
 
 # Copy environment variables
 cp .env.example .env.local
+```
 
 ### Environment Variables
 
-Bash
-
-
+```bash
 # ── AWS Core ──────────────────────────────────────────
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=your_access_key
@@ -313,22 +299,21 @@ MENSTLLAMA_EC2_URL=http://your-ec2-public-ip:8080
 # ── App ───────────────────────────────────────────────
 NEXTAUTH_SECRET=your_secret
 NEXT_PUBLIC_APP_URL=https://your-domain.com
+```
 
 ### Run Development Server
 
-Bash
-
-
+```bash
 npm run dev
 # Open http://localhost:3000
+```
 
 ### Seed Demo Data
 
-Bash
-
-
+```bash
 # Seeds 365 days of PCOS-pattern data for Priya demo account
 npx ts-node scripts/seed-demo-data.ts
+```
 
 ---
 
@@ -336,13 +321,12 @@ npx ts-node scripts/seed-demo-data.ts
 
 Want to explore Ovira AI without signing up?
 
-copy
-
-
+```
 Email:    demo@ovira.ai
 Password: OviraDemo2025!
+```
 
-Meet Priya — our demo user:
+**Meet Priya** — our demo user:
 - 27 years old, Bangalore
 - Vegetarian, rice-dominant (South Indian) diet
 - PCOS (diagnosed September 2024)
@@ -350,8 +334,7 @@ Meet Priya — our demo user:
 - Saved doctor: Dr. Meera Nair, Apollo Hospitals
 - Uploaded document: Ultrasound report
 
-> *Try asking Aria: "Why do I get acne
-before my period?" — watch MenstLLaMA respond with Indian context-aware advice*
+> *Try asking Aria: "Why do I get acne before my period?" — watch MenstLLaMA respond with Indian context-aware advice*
 
 ---
 
@@ -359,12 +342,12 @@ before my period?" — watch MenstLLaMA respond with Indian context-aware advice
 
 | Scale | Monthly Cost | Breakdown |
 |---|---|---|
-| MVP / Dev | ~$0 | All free tiers (Cognito 50K MAU, DynamoDB 25GB, S3 5GB) |
-| 100 DAU | ~$5–15 | Bedrock tokens only (Claude Haiku $0.25/1M input) |
-| 1,000 DAU | ~$28 | Bedrock + EC2 t3.medium (~$0.04/hr) |
-| 10,000 DAU | ~$245 | Bedrock scaled + response caching active |
+| **MVP / Dev** | ~$0 | All free tiers (Cognito 50K MAU, DynamoDB 25GB, S3 5GB) |
+| **100 DAU** | ~$5–15 | Bedrock tokens only (Claude Haiku $0.25/1M input) |
+| **1,000 DAU** | ~$28 | Bedrock + EC2 t3.medium (~$0.04/hr) |
+| **10,000 DAU** | ~$245 | Bedrock scaled + response caching active |
 
-Cost optimisations built in:
+**Cost optimisations built in:**
 - Prompt hash caching → identical questions served from DynamoDB cache (TTL: 24h)
 - Nova Micro fallback for simple queries (10x cheaper than Haiku)
 - MenstLLaMA on EC2 for domain queries (fixed cost vs per-token Bedrock)
@@ -382,8 +365,8 @@ Cost optimisations built in:
 - ✅ User can export all their data as JSON at any time
 
 ### Responsible AI Principles
-- ❌ Never: diagnose, diagnosis, you have [condition], treatment, prescribe
-- ✅ Always: "this pattern is worth discussing with your doctor"
+- ❌ **Never:** diagnose, diagnosis, you have [condition], treatment, prescribe
+- ✅ **Always:** "this pattern is worth discussing with your doctor"
 - ✅ Every AI response ends with consultation reminder
 - ✅ Medical safety guardrails on every Bedrock and MenstLLaMA call
 - ✅ Concern flagging only — never replaces professional medical consultation
@@ -406,9 +389,7 @@ Cost optimisations built in:
 
 ## 📊 Business Model
 
-copy
-
-
+```
 FREE          →  Rs 0/month
               AI companion chat, basic symptom logging,
               1 health report/month
@@ -420,8 +401,9 @@ OVIRA PRO     →  Rs 199/month
 OVIRA CLINIC  →  Rs 2,999/month
               Doctor dashboard, patient management,
               bulk appointment handling, API access
+```
 
-Market:
+**Market:**
 - TAM: 180M Indian women (18–45) with smartphones
 - SAM: 45M urban women actively tracking health
 - SOM: 12M willing to pay for personalised health tools
@@ -430,11 +412,11 @@ Market:
 
 ## 🏆 Hackathon
 
-Event: AI for Bharat Hackathon 2025
-Powered by: AWS · H2S · YourStory
-Prize pool: ₹40 Lakhs
+**Event:** AI for Bharat Hackathon 2025
+**Powered by:** AWS · H2S · YourStory
+**Prize pool:** ₹40 Lakhs
 
-Judging criteria we address:
+**Judging criteria we address:**
 | Criterion | Weight | Our Approach |
 |---|---|---|
 | Implementation | 50% | Live URL, demo account, zero crashes |
@@ -452,16 +434,16 @@ Built with 🩷 for Indian women who deserve better healthcare technology.
 
 ## 📄 License
 
-MIT License — see LICENSE for details.
+MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
 <div align="center">
 
-Ovira AI — For the woman who deserves more than a 15-minute appointment.
+**Ovira AI — For the woman who deserves more than a 15-minute appointment.**
 
 *🩷 Star this repo if you believe women's health deserves better technology*
 
-![GitHub stars](https://github.com/your-org/ovira-ai)
+[![GitHub stars](https://img.shields.io/github/stars/your-org/ovira-ai?style=social)](https://github.com/your-org/ovira-ai)
 
 </div>
