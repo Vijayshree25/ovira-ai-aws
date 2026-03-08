@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/Button';
@@ -37,7 +37,7 @@ export default function LogPage() {
     const [notes, setNotes] = useState('');
 
     // Load existing log data when date changes
-    const loadExistingLog = async (date: Date) => {
+    const loadExistingLog = useCallback(async (date: Date) => {
         if (!user) return;
         
         setIsLoadingExistingLog(true);
@@ -80,15 +80,12 @@ export default function LogPage() {
         } finally {
             setIsLoadingExistingLog(false);
         }
-    };
+    }, [user]);
 
     // Load existing log when component mounts or date changes
     useEffect(() => {
-        if (user) {
-            loadExistingLog(selectedDate);
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user]); // Only run on mount and when user changes
+        loadExistingLog(selectedDate);
+    }, [selectedDate, loadExistingLog]); // Run when selectedDate OR loadExistingLog changes
 
     const toggleSymptom = (symptom: string) => {
         setSymptoms((prev) =>
