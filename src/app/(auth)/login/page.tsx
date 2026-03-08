@@ -170,7 +170,7 @@ export default function LoginPage() {
             <div className="w-full max-w-md animate-slide-in-up">
                 {/* Logo/Brand */}
                 <div className="flex flex-col items-center mb-6">
-                    <Logo variant="vertical" size={140} />
+                    <Logo variant="horizontal" size={64} />
                 </div>
 
                 <Card variant="elevated" padding="lg">

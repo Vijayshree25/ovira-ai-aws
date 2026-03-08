@@ -101,8 +101,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div className="flex flex-col h-full">
                     {/* Logo */}
                     <div className="border-b border-border overflow-hidden">
-                        <Link href="/dashboard" className="block w-full">
-                            <Logo variant="horizontal" className="w-full" />
+                        <Link href="/dashboard" className="block w-full py-1 -ml-8">
+                            <Logo variant="horizontal" size={75} className="w-full" />
                         </Link>
                     </div>
 
@@ -180,7 +180,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         >
                             <Menu size={24} />
                         </button>
-                        <Logo variant="horizontal" size={36} />
+                        <Logo variant="horizontal" size={48} />
                         <Link
                             href="/notifications"
                             className="relative p-2 rounded-lg hover:bg-surface-elevated transition-colors"

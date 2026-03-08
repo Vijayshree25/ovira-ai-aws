@@ -34,11 +34,10 @@ export const Logo: React.FC<LogoProps> = ({
     return (
         <div className={`${className}`}>
             <div
-                className={`relative overflow-hidden w-full`}
+                className={`relative overflow-hidden`}
                 style={{
-                    aspectRatio: variant === 'icon' ? '1/1' : aspectRatio,
-                    maxWidth: variant === 'icon' ? (size + 'px') : '100%',
-                    height: variant === 'icon' ? (size + 'px') : 'auto'
+                    width: variant === 'icon' ? size : variant === 'vertical' ? size * 0.83 : size * 4,
+                    height: size,
                 }}
             >
                 <Image
