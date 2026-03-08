@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { chatWithAI, getFallbackResponse, sanitizeResponse } from '@/lib/aws/bedrock';
 import { retrieveAndGenerate, type Citation } from '@/lib/aws/bedrock-kb';
 import { retryWithBackoff } from '@/lib/aws/bedrock-kb';
+import { chatWithSLM, routeToSLM } from '@/lib/menstllama-client';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -70,6 +71,16 @@ function formatCitationFooter(citations: Citation[]): string {
     return `\n\n📚 Sources: ${sourceNames.join(', ')}`;
 }
 
+/**
+ * Ensure the consultation reminder is appended if not already present.
+ */
+function ensureConsultationReminder(text: string): string {
+    if (text.includes('healthcare provider') || text.includes('consult')) {
+        return text;
+    }
+    return text + '\n\nPlease consult a healthcare provider for personalised advice.';
+}
+
 // ─── Route Handler ───────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
@@ -83,15 +94,17 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Check if AWS credentials are configured
-        if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-            console.log('AWS credentials not configured, using fallback response');
-            return NextResponse.json({
-                message: getFallbackResponse(message),
-                citations: [],
-                model: 'static-fallback',
-                ragEnabled: false,
-            });
+        // Build user context string early so it's available for all paths
+        let contextString = '';
+        if (userContext?.healthSummary) {
+            contextString = userContext.healthSummary;
+        } else {
+            if (userContext?.ageRange) {
+                contextString += `User age range: ${userContext.ageRange}`;
+            }
+            if (userContext?.conditions?.length > 0) {
+                contextString += `, Known conditions: ${userContext.conditions.join(', ')}`;
+            }
         }
 
         // Build conversation history array
@@ -105,17 +118,67 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // ── Attempt KB-backed RAG response ──────────────────────────────────
+        // ── Step 1: Classify — should this go to the SLM? ──────────────────
+
+        const useSLM = routeToSLM(message);
+
+        // ── Step 2: If SLM route, try MenstLLaMA first ─────────────────────
+
+        if (useSLM) {
+            try {
+                const slmResult = await chatWithSLM(message, contextString);
+
+                if (!slmResult.fallbackUsed) {
+                    // SLM succeeded — apply safety guardrails and return
+                    const sanitized = sanitizeResponse(slmResult.response);
+                    const finalMessage = ensureConsultationReminder(sanitized);
+
+                    return NextResponse.json({
+                        message: finalMessage,
+                        citations: [],
+                        model: 'MenstLLaMA-EC2 (Menstrual Health Specialist)',
+                        ragEnabled: false,
+                        slmUsed: true,
+                        latency_ms: slmResult.latency_ms,
+                    });
+                }
+
+                // SLM unavailable — fall through to Bedrock below
+                console.log('SLM unavailable or returned fallback, falling through to Bedrock');
+            } catch (slmError) {
+                console.error('SLM call threw, falling through to Bedrock:', slmError);
+            }
+        }
+
+        // ── Step 3: Check if AWS credentials are configured ────────────────
+
+        if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+            console.log('AWS credentials not configured, using fallback response');
+            return NextResponse.json({
+                message: getFallbackResponse(message),
+                citations: [],
+                model: 'static-fallback',
+                ragEnabled: false,
+                slmUsed: false,
+            });
+        }
+
+        // ── Step 4: Attempt KB-backed RAG response (Bedrock) ───────────────
 
         if (CHATBOT_KB_ID) {
             try {
                 const contextualQuestion = buildContextualQuestion(message, history);
 
+                // Inject user health context into the system prompt for the KB call
+                const kbSystemPrompt = contextString
+                    ? `USER HEALTH CONTEXT:\n${contextString}\n\n${CHATBOT_SYSTEM_PROMPT}`
+                    : CHATBOT_SYSTEM_PROMPT;
+
                 const { answer, citations, modelUsed } = await retryWithBackoff(() =>
                     retrieveAndGenerate(
                         contextualQuestion,
                         CHATBOT_KB_ID,
-                        CHATBOT_SYSTEM_PROMPT,
+                        kbSystemPrompt,
                     ),
                 );
 
@@ -124,13 +187,14 @@ export async function POST(request: NextRequest) {
 
                 // Append citation footer if sources exist
                 const citationFooter = formatCitationFooter(citations);
-                const finalMessage = sanitizedAnswer + citationFooter;
+                const finalMessage = ensureConsultationReminder(sanitizedAnswer) + citationFooter;
 
                 return NextResponse.json({
                     message: finalMessage,
                     citations,
                     model: modelUsed,
                     ragEnabled: true,
+                    slmUsed: false,
                 });
             } catch (kbError) {
                 console.error(
@@ -143,45 +207,36 @@ export async function POST(request: NextRequest) {
             console.warn('BEDROCK_CHATBOT_KB_ID not set — skipping KB, using direct Claude');
         }
 
-        // ── Fallback: direct chatWithAI (no RAG) ───────────────────────────
+        // ── Step 5: Fallback — direct chatWithAI (no RAG) ──────────────────
 
         try {
-            // Build user context string
-            let contextString = '';
-            if (userContext?.healthSummary) {
-                contextString = userContext.healthSummary;
-            } else {
-                if (userContext?.ageRange) {
-                    contextString += `User age range: ${userContext.ageRange}`;
-                }
-                if (userContext?.conditions?.length > 0) {
-                    contextString += `, Known conditions: ${userContext.conditions.join(', ')}`;
-                }
-            }
-
             const { response, model_used } = await chatWithAI(
                 message,
                 conversationHistory,
                 contextString,
             );
 
+            const finalMessage = ensureConsultationReminder(response);
+
             return NextResponse.json({
-                message: response,
+                message: finalMessage,
                 citations: [],
                 model: model_used,
                 ragEnabled: false,
+                slmUsed: false,
             });
         } catch (fallbackError) {
             console.error('Direct Claude fallback also failed:', fallbackError);
         }
 
-        // ── Final static fallback ───────────────────────────────────────────
+        // ── Step 6: Final static fallback ──────────────────────────────────
 
         return NextResponse.json({
             message: getFallbackResponse(message),
             citations: [],
             model: 'static-fallback',
             ragEnabled: false,
+            slmUsed: false,
         });
     } catch (error) {
         console.error('Chat API error:', error);
@@ -190,6 +245,7 @@ export async function POST(request: NextRequest) {
             citations: [],
             model: 'static-fallback',
             ragEnabled: false,
+            slmUsed: false,
         });
     }
 }

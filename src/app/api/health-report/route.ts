@@ -22,6 +22,10 @@ interface UserProfileInput {
     conditions?: string[];
     averageCycleLength?: number;
     lastPeriodStart?: string;
+    healthContextSummary?: string;
+    dietType?: string;
+    stapleGrain?: string;
+    ironRichFoodFrequency?: string;
 }
 
 interface HealthReportRequest {
@@ -358,6 +362,9 @@ export async function POST(request: NextRequest) {
                         topSymptoms: stats.topSymptoms,
                         fatigueDuringPeriod: stats.fatigueDuringPeriod,
                         userConditions: stats.userConditions,
+                        dietType: userProfile.dietType || 'not specified',
+                        stapleGrain: userProfile.stapleGrain || 'not specified',
+                        ironRichFoodFrequency: userProfile.ironRichFoodFrequency || 'not specified',
                     },
                     null,
                     2,
@@ -365,11 +372,16 @@ export async function POST(request: NextRequest) {
 
                 const question = `Generate a comprehensive health report for a patient with these menstrual health statistics:\n\n${statsJson}`;
 
+                // Inject user health context into the clinical system prompt
+                const clinicalPrompt = userProfile.healthContextSummary
+                    ? `USER HEALTH CONTEXT:\n${userProfile.healthContextSummary}\n\n${CLINICAL_SYSTEM_PROMPT}`
+                    : CLINICAL_SYSTEM_PROMPT;
+
                 const { answer, citations, modelUsed } = await retryWithBackoff(() =>
                     retrieveAndGenerate(
                         question,
                         CLINICAL_KB_ID,
-                        CLINICAL_SYSTEM_PROMPT,
+                        clinicalPrompt,
                         1200, // larger token budget for structured clinical output
                     ),
                 );
@@ -448,6 +460,10 @@ USER PROFILE:
 - Age Range: ${userProfile.ageRange || 'Not specified'}
 - Known Conditions: ${userProfile.conditions?.join(', ') || 'None reported'}
 - Average Cycle Length: ${userProfile.averageCycleLength || 28} days
+- Diet Type: ${userProfile.dietType || 'Not specified'}
+- Staple Grain: ${userProfile.stapleGrain || 'Not specified'}
+- Iron-Rich Food Frequency: ${userProfile.ironRichFoodFrequency || 'Not specified'}
+${userProfile.healthContextSummary ? `\nHEALTH CONTEXT SUMMARY:\n${userProfile.healthContextSummary}` : ''}
 `;
 
             const symptomData = `

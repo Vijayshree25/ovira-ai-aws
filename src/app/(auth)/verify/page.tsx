@@ -111,8 +111,8 @@ function VerifyContent() {
                     <CardContent>
                         {error && (
                             <div className={`mb-4 p-3 rounded-lg border text-sm ${error.includes('sent')
-                                    ? 'bg-success/10 border-success/20 text-success'
-                                    : 'bg-error/10 border-error/20 text-error'
+                                ? 'bg-success/10 border-success/20 text-success'
+                                : 'bg-error/10 border-error/20 text-error'
                                 }`}>
                                 {error}
                             </div>

@@ -67,7 +67,11 @@ export default function SignupPage() {
             console.error('Signup error:', err);
             const errorMessage = err.message || err.error || '';
 
+<<<<<<< Updated upstream
             // If user already exists, tell them to login instead
+=======
+            // If user already exists, check if they need verification
+>>>>>>> Stashed changes
             if (errorMessage.includes('UsernameExistsException') || errorMessage.includes('already exists')) {
                 setError('DUPLICATE_EMAIL');
             } else {
@@ -98,12 +102,16 @@ export default function SignupPage() {
 
             console.log('Verification response:', data);
 
+<<<<<<< Updated upstream
             // Show "Email Verified!" success state first
             setSignupStep('complete');
 
             // Auto login after a brief delay so user sees the success message
             await new Promise(resolve => setTimeout(resolve, 2000));
 
+=======
+            // Auto login after verification
+>>>>>>> Stashed changes
             const loginResponse = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -139,6 +147,10 @@ export default function SignupPage() {
                 // Small delay to ensure state is set
                 await new Promise(resolve => setTimeout(resolve, 300));
 
+<<<<<<< Updated upstream
+=======
+                setSignupStep('complete');
+>>>>>>> Stashed changes
                 router.push('/onboarding');
             } else {
                 throw new Error('Login failed after verification');

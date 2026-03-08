@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
-import { Home, Calendar, MessageCircle, FileText, Settings, LogOut, Menu, X, User, Bell } from 'lucide-react';
+import { Home, Calendar, MessageCircle, FileText, Settings, LogOut, Menu, X, User, Bell, Users } from 'lucide-react';
 import {
     loadSettings, saveSettings, loadNotifications, getUnreadCount,
     checkAndGenerateNotifications
@@ -69,6 +69,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { name: 'Dashboard', href: '/dashboard', icon: Home },
         { name: 'Log Symptoms', href: '/log', icon: Calendar },
         { name: 'Chat with AI', href: '/chat', icon: MessageCircle },
+        { name: 'Doctors', href: '/doctors', icon: Users, pro: !userProfile?.isPremium },
         { name: 'Reports', href: '/reports', icon: FileText },
         { name: 'Notifications', href: '/notifications', icon: Bell, badge: unreadCount },
         { name: 'Settings', href: '/settings', icon: Settings },
@@ -106,7 +107,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
 
                     {/* Navigation */}
-                    <nav className="flex-1 p-4 space-y-1">
+                    <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
                         {navigation.map((item) => {
                             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                             return (
@@ -121,6 +122,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 >
                                     <item.icon size={20} />
                                     <span className="flex-1">{item.name}</span>
+                                    {item.pro && (
+                                        <span className="bg-accent/10 text-accent text-[10px] font-bold px-2 py-0.5 rounded-full border border-accent/20">
+                                            PRO
+                                        </span>
+                                    )}
                                     {item.badge != null && item.badge > 0 && (
                                         <span className="bg-accent text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
                                             {item.badge > 9 ? '9+' : item.badge}

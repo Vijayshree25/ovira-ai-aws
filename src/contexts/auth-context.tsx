@@ -86,6 +86,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             console.log('Setting user profile:', profile);
+
+            // Compute healthContextSummary for users who completed onboarding
+            // before this feature was added (one-time migration)
+            if (
+                profile &&
+                profile.onboardingComplete &&
+                !profile.healthContextSummary
+            ) {
+                try {
+                    const { buildHealthContext } = await import('@/lib/buildHealthContext');
+                    const healthContextSummary = buildHealthContext(profile);
+                    profile.healthContextSummary = healthContextSummary;
+                    // Persist to DynamoDB in background (don't block profile load)
+                    updateUserProfileDB(userId, { healthContextSummary }).catch((err) =>
+                        console.error('Failed to persist computed healthContextSummary:', err),
+                    );
+                    console.log('Computed and saved missing healthContextSummary');
+                } catch (err) {
+                    console.error('Error computing healthContextSummary:', err);
+                }
+            }
+
             setUserProfile(profile);
         } catch (err: any) {
             console.error('Error fetching user profile:', err);

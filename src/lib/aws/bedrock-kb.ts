@@ -232,15 +232,21 @@ Keep answers concise (2-3 paragraphs).`;
 export async function chatWithKB(
     question: string,
     conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [],
+    userContext?: string,
 ): Promise<KBResponse> {
     if (!CHATBOT_KB_ID) {
         console.warn('BEDROCK_CHATBOT_KB_ID is not set — falling back to plain Claude');
-        return chatFallback(question, conversationHistory);
+        return chatFallback(question, conversationHistory, userContext);
     }
 
     try {
+        // Prepend user health context to system prompt when available
+        const prompt = userContext
+            ? `USER HEALTH CONTEXT:\n${userContext}\n\n${CHATBOT_SYSTEM_PROMPT}`
+            : CHATBOT_SYSTEM_PROMPT;
+
         const { answer, citations, modelUsed } = await retryWithBackoff(() =>
-            retrieveAndGenerate(question, CHATBOT_KB_ID, CHATBOT_SYSTEM_PROMPT),
+            retrieveAndGenerate(question, CHATBOT_KB_ID, prompt),
         );
 
         return {
@@ -252,18 +258,23 @@ export async function chatWithKB(
         };
     } catch (error) {
         console.error('chatWithKB: KB call failed after retries, using plain Claude fallback', error);
-        return chatFallback(question, conversationHistory);
+        return chatFallback(question, conversationHistory, userContext);
     }
 }
 
 async function chatFallback(
     question: string,
     conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
+    userContext?: string,
 ): Promise<KBResponse> {
     try {
+        const prompt = userContext
+            ? `USER HEALTH CONTEXT:\n${userContext}\n\n${CHATBOT_SYSTEM_PROMPT}`
+            : CHATBOT_SYSTEM_PROMPT;
+
         const text = await fallbackInvokeClaude(
             question,
-            CHATBOT_SYSTEM_PROMPT,
+            prompt,
             conversationHistory,
         );
 
@@ -307,18 +318,24 @@ RULES:
  */
 export async function generateClinicalInsights(
     symptomSummary: string,
+    userContext?: string,
 ): Promise<KBResponse> {
     if (!CLINICAL_KB_ID) {
         console.warn('BEDROCK_CLINICAL_KB_ID is not set — falling back to plain Claude');
-        return clinicalFallback(symptomSummary);
+        return clinicalFallback(symptomSummary, userContext);
     }
 
     try {
+        // Prepend user health context to clinical system prompt when available
+        const prompt = userContext
+            ? `USER HEALTH CONTEXT:\n${userContext}\n\n${CLINICAL_SYSTEM_PROMPT}`
+            : CLINICAL_SYSTEM_PROMPT;
+
         const { answer, citations, modelUsed } = await retryWithBackoff(() =>
             retrieveAndGenerate(
                 symptomSummary,
                 CLINICAL_KB_ID,
-                CLINICAL_SYSTEM_PROMPT,
+                prompt,
                 1200, // larger token budget for structured clinical output
             ),
         );
@@ -335,13 +352,17 @@ export async function generateClinicalInsights(
             'generateClinicalInsights: KB call failed after retries, using plain Claude fallback',
             error,
         );
-        return clinicalFallback(symptomSummary);
+        return clinicalFallback(symptomSummary, userContext);
     }
 }
 
-async function clinicalFallback(symptomSummary: string): Promise<KBResponse> {
+async function clinicalFallback(symptomSummary: string, userContext?: string): Promise<KBResponse> {
     try {
-        const text = await fallbackInvokeClaude(symptomSummary, CLINICAL_SYSTEM_PROMPT);
+        const prompt = userContext
+            ? `USER HEALTH CONTEXT:\n${userContext}\n\n${CLINICAL_SYSTEM_PROMPT}`
+            : CLINICAL_SYSTEM_PROMPT;
+
+        const text = await fallbackInvokeClaude(symptomSummary, prompt);
 
         return {
             response: text,

@@ -27,8 +27,8 @@ function Chip({
             type="button"
             onClick={onClick}
             className={`px-4 py-2.5 rounded-xl border-2 text-sm font-medium transition-all duration-200 ${selected
-                    ? 'border-primary bg-primary/10 text-primary scale-[1.03] shadow-sm'
-                    : 'border-border hover:border-primary/40 hover:bg-primary/5'
+                ? 'border-primary bg-primary/10 text-primary scale-[1.03] shadow-sm'
+                : 'border-border hover:border-primary/40 hover:bg-primary/5'
                 }`}
         >
             {emoji && <span className="mr-1.5">{emoji}</span>}
@@ -222,10 +222,10 @@ export default function OnboardingPage() {
                                 <div key={num} className="flex flex-col items-center gap-1">
                                     <div
                                         className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-300 ${num < step
-                                                ? 'bg-primary text-white'
-                                                : num === step
-                                                    ? 'bg-primary text-white ring-4 ring-primary/20'
-                                                    : 'bg-surface border-2 border-border text-text-muted'
+                                            ? 'bg-primary text-white'
+                                            : num === step
+                                                ? 'bg-primary text-white ring-4 ring-primary/20'
+                                                : 'bg-surface border-2 border-border text-text-muted'
                                             }`}
                                     >
                                         {num < step ? <Check size={14} /> : <Icon size={14} />}
@@ -284,8 +284,8 @@ export default function OnboardingPage() {
                                                             }))
                                                         }
                                                         className={`p-3 rounded-xl border-2 text-left transition-all flex items-center justify-between ${data.language === lang.code
-                                                                ? 'border-primary bg-primary/10'
-                                                                : 'border-border hover:border-primary/50'
+                                                            ? 'border-primary bg-primary/10'
+                                                            : 'border-border hover:border-primary/50'
                                                             }`}
                                                     >
                                                         <span className="font-medium text-sm">
@@ -335,8 +335,8 @@ export default function OnboardingPage() {
                                                         }))
                                                     }
                                                     className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${data.acceptedTerms
-                                                            ? 'bg-primary border-primary'
-                                                            : 'border-border hover:border-primary'
+                                                        ? 'bg-primary border-primary'
+                                                        : 'border-border hover:border-primary'
                                                         }`}
                                                 >
                                                     {data.acceptedTerms && (
@@ -373,8 +373,8 @@ export default function OnboardingPage() {
                                                         }))
                                                     }
                                                     className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0 ${data.acceptedMedicalDisclaimer
-                                                            ? 'bg-warning border-warning'
-                                                            : 'border-border hover:border-warning'
+                                                        ? 'bg-warning border-warning'
+                                                        : 'border-border hover:border-warning'
                                                         }`}
                                                 >
                                                     {data.acceptedMedicalDisclaimer && (
@@ -626,14 +626,14 @@ export default function OnboardingPage() {
                                                 key={condition}
                                                 onClick={() => toggleCondition(condition)}
                                                 className={`p-3 rounded-xl border-2 text-sm text-left transition-all flex items-center gap-2 ${data.conditions.includes(condition)
-                                                        ? 'border-primary bg-primary/10 text-primary'
-                                                        : 'border-border hover:border-primary/50'
+                                                    ? 'border-primary bg-primary/10 text-primary'
+                                                    : 'border-border hover:border-primary/50'
                                                     }`}
                                             >
                                                 <div
                                                     className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${data.conditions.includes(condition)
-                                                            ? 'bg-primary border-primary'
-                                                            : 'border-border'
+                                                        ? 'bg-primary border-primary'
+                                                        : 'border-border'
                                                         }`}
                                                 >
                                                     {data.conditions.includes(condition) && (

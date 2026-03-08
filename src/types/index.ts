@@ -34,6 +34,7 @@ export interface UserProfile {
     personalGoal?: string;
     // AI context
     healthContextSummary?: string;
+    isPremium?: boolean;
 }
 
 // Symptom Log
@@ -110,6 +111,23 @@ export interface OnboardingData {
     regularSymptoms: string[];
     hasDoctorConsultation: string;
     personalGoal: string;
+}
+
+// Appointment
+export interface Appointment {
+    id: string; // appointmentId
+    userId: string;
+    doctorId: string;
+    doctorName: string;
+    hospital: string;
+    city: string;
+    date: string;
+    time: string;
+    status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+    summaryGenerated: boolean;
+    summarySent: boolean;
+    summaryContent?: string;
+    createdAt: string;
 }
 
 // Health Conditions List

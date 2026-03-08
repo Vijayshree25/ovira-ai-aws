@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -14,6 +14,7 @@ interface Message {
     role: 'user' | 'assistant';
     content: string;
     timestamp: Date;
+    slmUsed?: boolean;
 }
 
 const STARTER_QUESTIONS = [
@@ -159,6 +160,7 @@ export default function ChatPage() {
                 role: 'assistant',
                 content: data.message,
                 timestamp: new Date(),
+                slmUsed: data.slmUsed === true,
             };
 
             setMessages((prev) => [...prev, assistantMessage]);
@@ -231,30 +233,39 @@ export default function ChatPage() {
                     ) : (
                         <>
                             {messages.map((message) => (
-                                <div
-                                    key={message.id}
-                                    className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'
-                                        }`}
-                                >
-                                    {message.role === 'assistant' && (
-                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center flex-shrink-0">
-                                            <Bot size={16} className="text-white" />
-                                        </div>
-                                    )}
+                                <React.Fragment key={message.id}>
                                     <div
-                                        className={`max-w-[80%] p-4 rounded-2xl ${message.role === 'user'
-                                            ? 'bg-primary text-white rounded-tr-sm'
-                                            : 'bg-surface-elevated text-text-primary rounded-tl-sm'
+                                        className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'
                                             }`}
                                     >
-                                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                                        {message.role === 'assistant' && (
+                                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center flex-shrink-0">
+                                                <Bot size={16} className="text-white" />
+                                            </div>
+                                        )}
+                                        <div
+                                            className={`max-w-[80%] p-4 rounded-2xl ${message.role === 'user'
+                                                ? 'bg-primary text-white rounded-tr-sm'
+                                                : 'bg-surface-elevated text-text-primary rounded-tl-sm'
+                                                }`}
+                                        >
+                                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                                        </div>
+                                        {message.role === 'user' && (
+                                            <div className="w-8 h-8 rounded-lg bg-surface-elevated flex items-center justify-center flex-shrink-0">
+                                                <User size={16} className="text-text-secondary" />
+                                            </div>
+                                        )}
                                     </div>
-                                    {message.role === 'user' && (
-                                        <div className="w-8 h-8 rounded-lg bg-surface-elevated flex items-center justify-center flex-shrink-0">
-                                            <User size={16} className="text-text-secondary" />
+                                    {/* MenstLLaMA specialist badge */}
+                                    {message.role === 'assistant' && message.slmUsed && (
+                                        <div className="flex justify-start ml-11 -mt-2 mb-1">
+                                            <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 text-xs rounded-full px-3 py-1">
+                                                🧬 Powered by MenstLLaMA &mdash; fine-tuned on 23,820 Indian menstrual health Q&amp;As
+                                            </span>
                                         </div>
                                     )}
-                                </div>
+                                </React.Fragment>
                             ))}
                             {loading && (
                                 <div className="flex gap-3 justify-start">
