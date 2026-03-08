@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
+import { Logo } from '@/components/ui/Logo';
+import { CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
 type AuthStep = 'initial' | 'otp-challenge' | 'authenticated';
@@ -167,9 +169,8 @@ export default function LoginPage() {
         <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-teal-50 via-white to-teal-50">
             <div className="w-full max-w-md animate-slide-in-up">
                 {/* Logo/Brand */}
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-teal-600 mb-2">Ovira AI</h1>
-                    <p className="text-gray-600">Your personal women&apos;s health companion</p>
+                <div className="flex flex-col items-center mb-6">
+                    <Logo variant="vertical" size={140} />
                 </div>
 
                 <Card variant="elevated" padding="lg">

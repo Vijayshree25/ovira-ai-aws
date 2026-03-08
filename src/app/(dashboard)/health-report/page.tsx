@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Logo } from '@/components/ui/Logo';
 import { SymptomLog } from '@/types';
 import { formatDate } from '@/lib/utils';
 import {
@@ -467,8 +468,8 @@ export default function HealthReportPage() {
                         <CardContent className="pt-6">
                             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                                 <div>
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <FileText className="w-6 h-6 text-primary" />
+                                    <div className="flex items-center gap-4">
+                                        <Logo variant="icon" size={48} showText={false} />
                                         <h2 className="text-xl font-bold">Ovira Health Report</h2>
                                     </div>
                                     <div className="flex flex-wrap gap-4 text-sm text-text-secondary">

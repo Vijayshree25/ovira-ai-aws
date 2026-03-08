@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
+import { Logo } from '@/components/ui/Logo';
 import { Home, Calendar, MessageCircle, FileText, Settings, LogOut, Menu, X, User, Bell, Users, BookOpen, Clock } from 'lucide-react';
 import {
     loadSettings, saveSettings, loadNotifications, getUnreadCount,
@@ -99,12 +100,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             >
                 <div className="flex flex-col h-full">
                     {/* Logo */}
-                    <div className="p-6 border-b border-border">
-                        <Link href="/dashboard" className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                                <span className="text-white font-bold text-lg">O</span>
-                            </div>
-                            <span className="text-xl font-bold gradient-text">Ovira AI</span>
+                    <div className="border-b border-border overflow-hidden">
+                        <Link href="/dashboard" className="block w-full">
+                            <Logo variant="horizontal" className="w-full" />
                         </Link>
                     </div>
 
@@ -182,7 +180,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         >
                             <Menu size={24} />
                         </button>
-                        <span className="font-bold gradient-text">Ovira AI</span>
+                        <Logo variant="horizontal" size={36} />
                         <Link
                             href="/notifications"
                             className="relative p-2 rounded-lg hover:bg-surface-elevated transition-colors"

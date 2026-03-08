@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Logo } from '@/components/ui/Logo';
 import { HEALTH_CONDITIONS, SUPPORTED_LANGUAGES, SYMPTOM_OPTIONS, OnboardingData } from '@/types';
 import { Check, ChevronLeft, ChevronRight, Shield, Heart, Globe, Calendar, User, Utensils, Activity } from 'lucide-react';
 
@@ -257,10 +258,12 @@ export default function OnboardingPage() {
                         {step === 1 && (
                             <>
                                 <CardHeader className="text-center">
-                                    <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                                        <Shield className="w-7 h-7 text-primary" />
+                                    <div className="flex items-center justify-center mb-2">
+                                        <Logo variant="icon" size={64} showText={false} />
                                     </div>
-                                    <CardTitle>Welcome to Ovira AI</CardTitle>
+                                    <div className="flex items-center justify-center gap-4 mb-2">
+                                        <CardTitle>Welcome to Ovira AI</CardTitle>
+                                    </div>
                                     <CardDescription>
                                         Let&apos;s set up your personalised health companion
                                     </CardDescription>
