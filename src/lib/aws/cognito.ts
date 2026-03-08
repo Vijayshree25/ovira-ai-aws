@@ -36,7 +36,7 @@ export async function signUpUser(
 ): Promise<CognitoUser> {
     return new Promise((resolve, reject) => {
         console.log('Attempting signup with:', { email, displayName, passwordLength: password.length });
-        
+
         const attributeList = [
             new CognitoUserAttribute({
                 Name: 'email',
@@ -52,10 +52,10 @@ export async function signUpUser(
             if (err) {
                 console.error('Cognito signup error:', err);
                 console.error('Error details:', {
-                    code: err.code,
+                    code: (err as any).code,
                     name: err.name,
                     message: err.message,
-                    statusCode: err.statusCode
+                    statusCode: (err as any).statusCode
                 });
                 reject(err);
                 return;

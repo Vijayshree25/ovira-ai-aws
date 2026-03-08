@@ -22,7 +22,7 @@ describe('Preservation Property Tests - Basic', () => {
      * WHEN existing users attempt to log in with valid credentials 
      * THEN the system SHALL CONTINUE TO authenticate them successfully
      */
-    
+
     await fc.assert(
       fc.asyncProperty(
         fc.emailAddress(),
@@ -44,9 +44,9 @@ describe('Preservation Property Tests - Basic', () => {
      * WHEN existing users attempt to log in with valid credentials 
      * THEN the system SHALL CONTINUE TO authenticate them successfully
      */
-    
+
     const existingUserEmail = 'confirmed@example.com'
-    
+
     // Test the behavioral patterns that must be preserved
     expect(existingUserEmail).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
     expect(typeof existingUserEmail).toBe('string')
@@ -57,10 +57,10 @@ describe('Preservation Property Tests - Basic', () => {
     /**
      * **Validates: Requirements 3.1**
      */
-    
+
     await fc.assert(
       fc.asyncProperty(
-        fc.string({ minLength: 8, maxLength: 20 }).filter(p => 
+        fc.string({ minLength: 8, maxLength: 20 }).filter(p =>
           /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(p)
         ),
         async (password) => {
@@ -78,9 +78,9 @@ describe('Preservation Property Tests - Basic', () => {
     /**
      * **Validates: Requirements 3.1**
      */
-    
+
     const existingUserPassword = 'ExistingPass123'
-    
+
     // Test the behavioral patterns that must be preserved
     expect(existingUserPassword.length).toBeGreaterThanOrEqual(8)
     expect(existingUserPassword).toMatch(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
@@ -91,12 +91,12 @@ describe('Preservation Property Tests - Basic', () => {
     /**
      * **Validates: Requirements 3.1, 3.2**
      */
-    
+
     await fc.assert(
       fc.asyncProperty(
         fc.record({
           email: fc.emailAddress(),
-          password: fc.string({ minLength: 8, maxLength: 20 }).filter(p => 
+          password: fc.string({ minLength: 8, maxLength: 20 }).filter(p =>
             /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(p)
           ),
           isConfirmed: fc.boolean(),
@@ -108,14 +108,14 @@ describe('Preservation Property Tests - Basic', () => {
           expect(userData.password.length).toBeGreaterThanOrEqual(8)
           expect(typeof userData.isConfirmed).toBe('boolean')
           expect(['NotAuthorizedException', 'UserNotFoundException', 'UserNotConfirmedException']).toContain(userData.errorCode)
-          
+
           // Test error message mapping patterns that must be preserved
-          const errorMessages = {
+          const errorMessages: Record<string, string> = {
             'NotAuthorizedException': 'Incorrect email or password',
             'UserNotFoundException': 'No account found with this email',
             'UserNotConfirmedException': 'Please verify your email before signing in'
           }
-          
+
           expect(errorMessages[userData.errorCode]).toBeDefined()
           expect(typeof errorMessages[userData.errorCode]).toBe('string')
         }
@@ -128,13 +128,13 @@ describe('Preservation Property Tests - Basic', () => {
     /**
      * **Validates: Requirements 3.2**
      */
-    
+
     const errorMessages = {
       notAuthorized: 'Incorrect email or password',
       userNotFound: 'No account found with this email',
       googleNotConfigured: 'Google sign-in requires additional AWS Cognito Identity Pool configuration. Please use email/password for now.'
     }
-    
+
     // Test the error message patterns that must be preserved
     expect(errorMessages.notAuthorized).toBe('Incorrect email or password')
     expect(errorMessages.userNotFound).toBe('No account found with this email')
@@ -146,7 +146,7 @@ describe('Preservation Property Tests - Basic', () => {
     /**
      * **Validates: Requirements 3.3**
      */
-    
+
     await fc.assert(
       fc.asyncProperty(
         fc.record({
@@ -160,7 +160,7 @@ describe('Preservation Property Tests - Basic', () => {
           expect(otpData.otpCode).toMatch(/^\d{6}$/)
           expect(otpData.otpCode.length).toBe(6)
           expect(typeof otpData.isValid).toBe('boolean')
-          
+
           // Test validation logic patterns that must be preserved
           if (otpData.isValid) {
             expect(otpData.otpCode).toBeDefined()
@@ -176,15 +176,15 @@ describe('Preservation Property Tests - Basic', () => {
     /**
      * **Validates: Requirements 3.3**
      */
-    
+
     const validOtpCode = '123456'
     const invalidOtpCode = 'abc123'
-    
+
     // Test the OTP validation patterns that must be preserved
     expect(validOtpCode).toMatch(/^\d{6}$/)
     expect(validOtpCode.length).toBe(6)
     expect(typeof validOtpCode).toBe('string')
-    
+
     expect(invalidOtpCode).not.toMatch(/^\d{6}$/)
     expect(typeof invalidOtpCode).toBe('string')
   })
@@ -194,7 +194,7 @@ describe('Preservation Property Tests - Basic', () => {
      * This demonstrates the exact existing behavior patterns
      * that must be preserved for confirmed users.
      */
-    
+
     const existingUser = {
       email: 'confirmed@example.com',
       password: 'ExistingPass123',
@@ -205,7 +205,7 @@ describe('Preservation Property Tests - Basic', () => {
     expect(existingUser).toHaveProperty('email')
     expect(existingUser).toHaveProperty('password')
     expect(existingUser).toHaveProperty('isConfirmed')
-    
+
     expect(existingUser.email).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
     expect(existingUser.password.length).toBeGreaterThanOrEqual(8)
     expect(existingUser.isConfirmed).toBe(true)

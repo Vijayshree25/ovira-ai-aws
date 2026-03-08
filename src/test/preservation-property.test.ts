@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { fc } from 'fast-check'
+import * as fc from 'fast-check'
 
 // Mock the Cognito functions to simulate existing behavior
 vi.mock('@/lib/aws/cognito', () => ({
@@ -33,7 +33,7 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    
+
     // Import the mocked functions
     const cognitoModule = await import('@/lib/aws/cognito')
     mockSignInUser = vi.mocked(cognitoModule.signInUser)
@@ -57,13 +57,13 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
         // Generate existing confirmed user credentials
         fc.record({
           email: fc.emailAddress(),
-          password: fc.string({ minLength: 8, maxLength: 20 }).filter(p => 
+          password: fc.string({ minLength: 8, maxLength: 20 }).filter((p: string) =>
             /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(p)
           ),
           isConfirmedUser: fc.constant(true), // These are existing confirmed users
           hasValidSession: fc.constant(true)
         }),
-        async (input) => {
+        async (input: { email: string; password: string; isConfirmedUser: boolean; hasValidSession: boolean }) => {
           // Mock successful authentication for confirmed users (current behavior)
           const mockAuthUser = {
             username: input.email,
@@ -82,14 +82,14 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
           expect(result.username).toBe(input.email)
           expect(result.email).toBe(input.email)
           expect(result.session).toBeDefined()
-          
+
           // Verify the function was called with correct parameters
           expect(mockSignInUser).toHaveBeenCalledWith(input.email, input.password)
         }
       ),
-      { 
+      {
         numRuns: 5,
-        verbose: true 
+        verbose: true
       }
     )
   })
@@ -109,7 +109,7 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
       fc.asyncProperty(
         // Generate email addresses for password reset
         fc.emailAddress(),
-        async (email) => {
+        async (email: string) => {
           // Mock successful password reset (current behavior)
           mockResetPassword.mockResolvedValue(undefined)
 
@@ -121,9 +121,9 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
           expect(mockResetPassword).toHaveBeenCalledTimes(1)
         }
       ),
-      { 
+      {
         numRuns: 5,
-        verbose: true 
+        verbose: true
       }
     )
   })
@@ -147,7 +147,7 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
           wrongPassword: fc.string({ minLength: 1, maxLength: 20 }),
           errorCode: fc.constantFrom('NotAuthorizedException', 'UserNotFoundException')
         }),
-        async (input) => {
+        async (input: { email: string; wrongPassword: string; errorCode: string }) => {
           // Mock authentication failure (current behavior)
           const mockError = { code: input.errorCode, message: 'Authentication failed' }
           mockSignInUser.mockRejectedValue(mockError)
@@ -158,15 +158,15 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
 
           // Test error message mapping (current behavior)
           const errorMessage = mockGetCognitoErrorMessage(mockError)
-          
+
           // ASSERTIONS - These capture the existing error handling that must be preserved
           expect(errorMessage).toBe('Incorrect email or password')
           expect(mockSignInUser).toHaveBeenCalledWith(input.email, input.wrongPassword)
         }
       ),
-      { 
+      {
         numRuns: 5,
-        verbose: true 
+        verbose: true
       }
     )
   })
@@ -184,7 +184,7 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
 
     // Test the current Google signup behavior (from auth-context.tsx)
     const expectedErrorMessage = 'Google sign-in requires additional AWS Cognito Identity Pool configuration. Please use email/password for now.'
-    
+
     // This captures the current behavior that should be preserved
     expect(expectedErrorMessage).toContain('Google sign-in requires additional')
     expect(expectedErrorMessage).toContain('Please use email/password for now')
@@ -206,14 +206,14 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
         // Generate OTP validation scenarios
         fc.record({
           email: fc.emailAddress(),
-          otpCode: fc.string({ minLength: 6, maxLength: 6 }).filter(code => /^\d{6}$/.test(code)),
+          otpCode: fc.string({ minLength: 6, maxLength: 6 }).filter((code: string) => /^\d{6}$/.test(code)),
           isValidCode: fc.boolean()
         }),
-        async (input) => {
+        async (input: { email: string; otpCode: string; isValidCode: boolean }) => {
           // This test captures the expected behavior for OTP validation
           // The current system doesn't have OTP validation implemented yet,
           // but when it is, this behavior should be preserved
-          
+
           if (input.isValidCode) {
             // Valid OTP codes should be accepted
             expect(input.otpCode).toMatch(/^\d{6}$/)
@@ -229,9 +229,9 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
           expect(input.otpCode).toBeDefined()
         }
       ),
-      { 
+      {
         numRuns: 5,
-        verbose: true 
+        verbose: true
       }
     )
   })
@@ -241,7 +241,7 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
      * This is a concrete test case that demonstrates the exact existing behavior
      * that must be preserved for confirmed users.
      */
-    
+
     const existingUser = {
       email: 'confirmed@example.com',
       password: 'ExistingPass123',
@@ -279,7 +279,7 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
      * This is a concrete test case that demonstrates the exact existing behavior
      * that must be preserved for password reset functionality.
      */
-    
+
     const resetRequest = {
       email: 'user@example.com'
     }

@@ -18,6 +18,7 @@ export interface CalendarHeaderProps {
   month: number;
   onPreviousMonth: () => void;
   onNextMonth: () => void;
+  onJumpToMonth: (year: number, month: number) => void;
   canNavigateNext: boolean;
   isDropdownOpen: boolean;
   onHeaderClick: () => void;

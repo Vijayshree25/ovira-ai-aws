@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
-import { Mail, Lock, Eye, EyeOff, User, Check } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User, Check, CheckCircle } from 'lucide-react';
 
 type SignupStep = 'initial' | 'verify-email' | 'complete';
 
@@ -58,7 +58,13 @@ export default function SignupPage() {
             const data = await response.json();
 
             if (!data.success) {
-                throw new Error(data.message || 'Signup failed');
+                const msg = data.message || '';
+                if (msg.toLowerCase().includes('already exists')) {
+                    setError('DUPLICATE_EMAIL');
+                    setLoading(false);
+                    return;
+                }
+                throw new Error(msg || 'Signup failed');
             }
 
             console.log('Signup response:', data);
@@ -66,14 +72,11 @@ export default function SignupPage() {
         } catch (err: any) {
             console.error('Signup error:', err);
             const errorMessage = err.message || err.error || '';
-            
+            const lowerError = errorMessage.toLowerCase();
+
             // If user already exists, check if they need verification
-            if (errorMessage.includes('UsernameExistsException') || errorMessage.includes('already exists')) {
-                setError('Account exists. Redirecting to verification page...');
-                // Redirect to verify page - they might just need to verify
-                setTimeout(() => {
-                    router.push(`/verify?email=${encodeURIComponent(email)}`);
-                }, 2000);
+            if (lowerError.includes('usernameexistsexception') || lowerError.includes('already exists')) {
+                setError('DUPLICATE_EMAIL');
             } else {
                 setError(getAmplifyErrorMessage(errorMessage));
             }
@@ -101,7 +104,13 @@ export default function SignupPage() {
             }
 
             console.log('Verification response:', data);
-            
+
+            // Show "Email Verified!" success state first
+            setSignupStep('complete');
+
+            // Auto login after a brief delay so user sees the success message
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
             // Auto login after verification
             const loginResponse = await fetch('/api/auth/login', {
                 method: 'POST',
@@ -116,7 +125,7 @@ export default function SignupPage() {
                 localStorage.setItem('accessToken', loginData.authenticationResult.AccessToken);
                 localStorage.setItem('refreshToken', loginData.authenticationResult.RefreshToken);
                 localStorage.setItem('userEmail', email);
-                
+
                 // Create user profile in DynamoDB if it doesn't exist
                 try {
                     const { createUserProfile } = await import('@/lib/aws/dynamodb');
@@ -131,13 +140,13 @@ export default function SignupPage() {
                     // Profile might already exist, that's okay
                     console.log('Profile creation note:', profileError.message);
                 }
-                
+
                 // Wait for AuthContext to initialize user state
                 await refreshUser();
-                
+
                 // Small delay to ensure state is set
                 await new Promise(resolve => setTimeout(resolve, 300));
-                
+
                 setSignupStep('complete');
                 router.push('/onboarding');
             } else {
@@ -196,7 +205,7 @@ export default function SignupPage() {
                             {signupStep === 'initial' ? 'Create Account' : 'Check Your Email'}
                         </CardTitle>
                         <CardDescription>
-                            {signupStep === 'initial' 
+                            {signupStep === 'initial'
                                 ? 'Join thousands tracking their wellness'
                                 : `We sent a verification code to ${email}`
                             }
@@ -204,9 +213,22 @@ export default function SignupPage() {
                     </CardHeader>
 
                     <CardContent>
-                        {error && (
+                        {error && error !== 'DUPLICATE_EMAIL' && (
                             <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm">
                                 {error}
+                            </div>
+                        )}
+
+                        {error === 'DUPLICATE_EMAIL' && (
+                            <div className="mb-4 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+                                <p className="font-medium mb-1">An account with this email already exists.</p>
+                                <p>
+                                    Please{' '}
+                                    <Link href="/login" className="text-teal-600 hover:text-teal-700 font-semibold underline">
+                                        log in instead
+                                    </Link>
+                                    .
+                                </p>
                             </div>
                         )}
 
@@ -261,8 +283,8 @@ export default function SignupPage() {
                                                     <div
                                                         key={level}
                                                         className={`h-1 flex-1 rounded-full transition-colors ${level <= passwordStrength.level
-                                                                ? passwordStrength.color
-                                                                : 'bg-border'
+                                                            ? passwordStrength.color
+                                                            : 'bg-border'
                                                             }`}
                                                     />
                                                 ))}
@@ -290,8 +312,8 @@ export default function SignupPage() {
                                 <label className="flex items-start gap-3 cursor-pointer group">
                                     <div
                                         className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${acceptTerms
-                                                ? 'bg-teal-600 border-teal-600'
-                                                : 'border-gray-300 group-hover:border-teal-600'
+                                            ? 'bg-teal-600 border-teal-600'
+                                            : 'border-gray-300 group-hover:border-teal-600'
                                             }`}
                                         onClick={() => setAcceptTerms(!acceptTerms)}
                                     >
@@ -320,6 +342,16 @@ export default function SignupPage() {
                                     </Link>
                                 </p>
                             </form>
+                        )}
+
+                        {signupStep === 'complete' && (
+                            <div className="text-center py-6">
+                                <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                                    <CheckCircle className="w-8 h-8 text-green-600" />
+                                </div>
+                                <h2 className="text-2xl font-bold text-gray-800 mb-2">Email Verified!</h2>
+                                <p className="text-gray-600">Setting up your account...</p>
+                            </div>
                         )}
 
                         {signupStep === 'verify-email' && (

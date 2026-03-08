@@ -24,6 +24,10 @@ export const dynamoDBTables = {
     symptoms: process.env.NEXT_PUBLIC_DYNAMODB_SYMPTOMS_TABLE || 'ovira-symptoms',
     reports: process.env.NEXT_PUBLIC_DYNAMODB_REPORTS_TABLE || 'ovira-reports',
     chatHistory: process.env.NEXT_PUBLIC_DYNAMODB_CHAT_TABLE || 'ovira-chat-history',
+    articles: process.env.NEXT_PUBLIC_DYNAMODB_ARTICLES_TABLE || 'ovira-articles',
+    documents: process.env.NEXT_PUBLIC_DYNAMODB_DOCUMENTS_TABLE || 'ovira-documents',
+    doctors: process.env.NEXT_PUBLIC_DYNAMODB_DOCTORS_TABLE || 'ovira-doctors',
+    appointments: process.env.NEXT_PUBLIC_DYNAMODB_APPOINTMENTS_TABLE || 'ovira-appointments',
 };
 
 // S3 Configuration
@@ -39,7 +43,7 @@ export const s3Config = {
 function getCredentials() {
     const accessKeyId = process.env.NEXT_PUBLIC_AWS_ACCESS_KEY_ID;
     const secretAccessKey = process.env.NEXT_PUBLIC_AWS_SECRET_ACCESS_KEY;
-    
+
     if (accessKeyId && secretAccessKey) {
         return {
             accessKeyId,
@@ -61,7 +65,7 @@ function initializeClients() {
 
     try {
         const credentials = getCredentials();
-        
+
         // Initialize Cognito Client (doesn't need user credentials)
         cognitoClient = new CognitoIdentityProviderClient({
             region: cognitoConfig.region,

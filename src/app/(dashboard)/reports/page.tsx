@@ -17,7 +17,10 @@ import {
     CheckCircle,
     Calendar,
     TrendingUp,
-    Loader2
+    Loader2,
+    File,
+    Clock,
+    Check
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -34,6 +37,8 @@ export default function ReportsPage() {
     const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
     const [loading, setLoading] = useState(true);
     const [analyzing, setAnalyzing] = useState(false);
+    const [documents, setDocuments] = useState<any[]>([]);
+    const [loadingDocs, setLoadingDocs] = useState(true);
 
     useEffect(() => {
         const fetchLogs = async () => {
@@ -59,8 +64,45 @@ export default function ReportsPage() {
             }
         };
 
+        const fetchDocuments = async () => {
+            if (!user) return;
+            try {
+                const response = await fetch(`/api/documents?userId=${user.username}`);
+                const data = await response.json();
+                if (data.success) {
+                    setDocuments(data.documents);
+                }
+            } catch (error) {
+                console.error('Error fetching documents:', error);
+            } finally {
+                setLoadingDocs(false);
+            }
+        };
+
         fetchLogs();
+        fetchDocuments();
     }, [user]);
+
+    const toggleDocument = async (docId: string, currentStatus: boolean) => {
+        try {
+            const response = await fetch('/api/documents', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user?.username,
+                    docId,
+                    shouldIncludeInSummary: !currentStatus
+                })
+            });
+            if (response.ok) {
+                setDocuments(docs => docs.map(d =>
+                    d.docId === docId ? { ...d, shouldIncludeInSummary: !currentStatus } : d
+                ));
+            }
+        } catch (error) {
+            console.error('Error toggling document:', error);
+        }
+    };
 
     const analyzeHealth = async () => {
         if (logs.length === 0) return;
@@ -73,7 +115,7 @@ export default function ReportsPage() {
                 body: JSON.stringify({
                     logs: logs.map((log) => ({
                         ...log,
-                        date: log.date.toDate().toISOString(),
+                        date: (log.date as any).toDate().toISOString(),
                     })),
                     averageCycleLength: userProfile?.averageCycleLength || 28,
                 }),
@@ -270,45 +312,116 @@ export default function ReportsPage() {
                 </Card>
             )}
 
-            {/* Recent Logs */}
-            <Card variant="elevated">
-                <CardHeader>
-                    <CardTitle>Recent Logs</CardTitle>
-                    <CardDescription>Your symptom history</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {logs.length === 0 ? (
-                        <div className="text-center py-8">
-                            <p className="text-text-muted mb-4">No logs yet</p>
-                            <Link href="/log">
-                                <Button leftIcon={<Plus size={18} />}>Log Symptoms</Button>
-                            </Link>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {logs.slice(0, 10).map((log) => (
-                                <div
-                                    key={log.id}
-                                    className="flex items-center justify-between p-4 rounded-xl bg-surface-elevated"
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className="text-center min-w-[50px]">
-                                            <p className="text-lg font-bold">{formatDate(log.date.toDate(), 'd')}</p>
-                                            <p className="text-xs text-text-muted">{formatDate(log.date.toDate(), 'MMM')}</p>
-                                        </div>
-                                        <div>
-                                            <p className="font-medium capitalize">{log.flowLevel} flow</p>
-                                            <p className="text-sm text-text-muted">
-                                                Pain: {log.painLevel}/10 • {log.mood} mood • {log.energyLevel} energy
-                                            </p>
+            {/* Recent Logs and Your Documents Grid */}
+            <div className="grid md:grid-cols-2 gap-6">
+                {/* Recent Logs */}
+                <Card variant="elevated">
+                    <CardHeader>
+                        <CardTitle>Recent Logs</CardTitle>
+                        <CardDescription>Your symptom history</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {logs.length === 0 ? (
+                            <div className="text-center py-8">
+                                <p className="text-text-muted mb-4">No logs yet</p>
+                                <Link href="/log">
+                                    <Button leftIcon={<Plus size={18} />}>Log Symptoms</Button>
+                                </Link>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {logs.slice(0, 10).map((log) => (
+                                    <div
+                                        key={log.id}
+                                        className="flex items-center justify-between p-4 rounded-xl bg-surface-elevated"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-center min-w-[50px]">
+                                                <p className="text-lg font-bold">{formatDate((log.date as any).toDate(), 'd')}</p>
+                                                <p className="text-xs text-text-muted">{formatDate((log.date as any).toDate(), 'MMM')}</p>
+                                            </div>
+                                            <div>
+                                                <p className="font-medium capitalize">{log.flowLevel} flow</p>
+                                                <p className="text-sm text-text-muted">
+                                                    Pain: {log.painLevel}/10 • {log.mood} mood
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* Your Documents (NEW) */}
+                <Card variant="elevated">
+                    <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                            <span>Your Documents</span>
+                            <span className="text-xs font-normal text-text-muted bg-surface-elevated px-2 py-1 rounded">
+                                {documents.length} Total
+                            </span>
+                        </CardTitle>
+                        <CardDescription>Records to share with doctors</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {loadingDocs ? (
+                            <div className="flex justify-center py-8"><Loader2 className="animate-spin text-primary" /></div>
+                        ) : documents.length === 0 ? (
+                            <div className="text-center py-8">
+                                <File className="w-12 h-12 text-text-muted mx-auto mb-3" />
+                                <p className="text-text-muted mb-4 text-sm">No health documents uploaded yet.</p>
+                                <Link href="/settings">
+                                    <Button variant="secondary" size="sm">Go to Settings</Button>
+                                </Link>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {documents.map((doc) => (
+                                    <div
+                                        key={doc.docId}
+                                        className="p-3 rounded-xl bg-surface-elevated border border-transparent hover:border-primary/20 transition-all"
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                                                <div className="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center flex-shrink-0">
+                                                    <File className="w-5 h-5 text-pink-600" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-medium text-sm truncate">{doc.filename || doc.fileName}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-[10px] uppercase font-bold text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded">
+                                                            {doc.category?.replace('_', ' ') || 'BLOOD TEST'}
+                                                        </span>
+                                                        <span className="text-[10px] text-text-muted flex items-center gap-1">
+                                                            <Clock size={10} />
+                                                            {formatDate(new Date(doc.uploadedAt), 'MMM d, yyyy')}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => toggleDocument(doc.docId, !!doc.shouldIncludeInSummary)}
+                                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${doc.shouldIncludeInSummary
+                                                        ? 'bg-success/10 text-success border border-success/20'
+                                                        : 'bg-text-muted/10 text-text-muted border border-transparent hover:bg-text-muted/20'
+                                                    }`}
+                                            >
+                                                {doc.shouldIncludeInSummary ? <Check size={12} /> : <Plus size={12} />}
+                                                {doc.shouldIncludeInSummary ? 'Included' : 'Include'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                                <p className="text-[10px] text-text-muted text-center mt-4 bg-surface px-3 py-2 rounded-lg">
+                                    ℹ️ AI references document names only — contents are never read.
+                                </p>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
 
             {/* Disclaimer */}
             <Card variant="outlined" className="border-warning/30 bg-warning/5">

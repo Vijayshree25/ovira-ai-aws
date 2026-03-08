@@ -1,6 +1,10 @@
 'use client';
 
+import { useState } from 'react';
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import {
@@ -11,7 +15,8 @@ import {
   Calendar,
   Sparkles,
   ChevronRight,
-  CheckCircle
+  CheckCircle,
+  Play
 } from 'lucide-react';
 
 const features = [
@@ -50,6 +55,21 @@ const benefits = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
+  const { loginAsDemo } = useAuth();
+  const [demoLoading, setDemoLoading] = useState(false);
+
+  const handleTryDemo = async () => {
+    setDemoLoading(true);
+    try {
+      await loginAsDemo();
+      router.push('/dashboard');
+    } catch (err) {
+      console.error('Demo login failed:', err);
+    } finally {
+      setDemoLoading(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -93,11 +113,15 @@ export default function HomePage() {
                 Start Free Today
               </Button>
             </Link>
-            <Link href="/login">
-              <Button variant="outline" size="lg">
-                I have an account
-              </Button>
-            </Link>
+            <Button
+              variant="outline"
+              size="lg"
+              leftIcon={<Play size={18} />}
+              onClick={handleTryDemo}
+              isLoading={demoLoading}
+            >
+              Try Demo
+            </Button>
           </div>
         </div>
       </section>
@@ -178,11 +202,22 @@ export default function HomePage() {
           <p className="text-text-secondary mb-8">
             Join thousands of women taking control of their health with Ovira AI
           </p>
-          <Link href="/signup">
-            <Button size="lg" rightIcon={<ChevronRight size={20} />}>
-              Create Free Account
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link href="/signup">
+              <Button size="lg" rightIcon={<ChevronRight size={20} />}>
+                Create Free Account
+              </Button>
+            </Link>
+            <Button
+              variant="outline"
+              size="lg"
+              leftIcon={<Play size={18} />}
+              onClick={handleTryDemo}
+              isLoading={demoLoading}
+            >
+              Try Demo
             </Button>
-          </Link>
+          </div>
         </div>
       </section>
 

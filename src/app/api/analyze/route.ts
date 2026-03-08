@@ -97,12 +97,12 @@ export async function POST(request: NextRequest) {
         // Generate summary
         let summary = '';
         if (riskFlags.length === 0) {
-            summary = 'Your recent logs look good! No concerning patterns detected.';
+            summary = 'Your recent logs look good! No notable health concerns detected.';
             recommendations.push('Keep up your consistent logging habits');
         } else if (overallRisk === 'high') {
             summary = 'Some patterns in your logs may need attention. Please consult a healthcare provider.';
         } else {
-            summary = 'A few patterns worth monitoring have been identified. Review the flags below.';
+            summary = 'A few patterns worth monitoring have been noted as patterns. Review the flags below.';
         }
 
         // Add general recommendations

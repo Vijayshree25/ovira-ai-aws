@@ -5,13 +5,41 @@ export interface UserProfile {
     email: string;
     displayName?: string;
     photoURL?: string;
-    ageRange: '18-24' | '25-34' | '35-44' | '45+';
+    ageRange: '13-17' | '18-24' | '25-34' | '35-44' | '45+';
     conditions: string[];
     language: string;
     onboardingComplete: boolean;
     createdAt: string; // ISO 8601 string
     lastPeriodStart?: string; // ISO 8601 string
     averageCycleLength: number;
+    // About You (Step 2)
+    activityLevel?: string;
+    heightRange?: string;
+    // Cycle History (Step 3)
+    previousPeriodDates?: string[];
+    avgCycleLength?: number;
+    cycleRegularity?: string;
+    // Diet & Lifestyle (Step 5)
+    dietType?: string;
+    stapleGrain?: string;
+    ironRichFoodFrequency?: string;
+    waterIntake?: number;
+    caffeineIntake?: string;
+    sleepHabit?: string;
+    // Recent Symptoms (Step 6)
+    recentPainLevel?: string;
+    recentMoodPattern?: string;
+    regularSymptoms?: string[];
+    hasDoctorConsultation?: string;
+    personalGoal?: string;
+    // AI context
+    healthContextSummary?: string;
+    isPremium?: boolean;
+    // AI Preferences
+    aiPersonality?: 'warm' | 'informative' | 'detail';
+    aiResponseLength?: 'concise' | 'standard' | 'detailed';
+    aiModelPreference?: 'auto' | 'menstllama' | 'standard';
+    aiLanguage?: string;
 }
 
 // Symptom Log
@@ -58,13 +86,103 @@ export interface ChatMessage {
     timestamp: string; // ISO 8601 string
 }
 
-// Onboarding Data
+// Health Document
+export interface HealthDocument {
+    userId: string;
+    docId: string;
+    filename: string;
+    category: 'blood_test' | 'ultrasound' | 'prescription' | 'doctor_notes' | 'other';
+    uploadedAt: string; // ISO 8601 string
+    s3Key: string;
+    fileSize: number;
+}
+
+// Doctor
+export interface Doctor {
+    userId: string;
+    doctorId: string;
+    name: string;
+    specialty: 'Gynaecologist' | 'GP' | 'Endocrinologist' | 'Other';
+    hospital: string;
+    city: string;
+    phone?: string;
+    notes?: string;
+    isPreferred: boolean;
+}
+
+// Onboarding Data — covers all 6 steps
 export interface OnboardingData {
-    ageRange: UserProfile['ageRange'];
-    conditions: string[];
+    // Step 1 — Welcome
     language: string;
     acceptedTerms: boolean;
     acceptedMedicalDisclaimer: boolean;
+    // Step 2 — About You
+    ageRange: UserProfile['ageRange'];
+    activityLevel: string;
+    heightRange: string;
+    // Step 3 — Cycle History
+    lastPeriodStart: string;
+    previousPeriodDates: string[];
+    periodDuration: number;
+    cycleRegularity: string;
+    // Step 4 — Health Conditions
+    conditions: string[];
+    // Step 5 — Diet & Lifestyle
+    dietType: string;
+    stapleGrain: string;
+    ironRichFoodFrequency: string;
+    waterIntake: number;
+    caffeineIntake: string;
+    sleepHabit: string;
+    // Step 6 — Recent Symptoms
+    recentPainLevel: string;
+    recentMoodPattern: string;
+    regularSymptoms: string[];
+    hasDoctorConsultation: string;
+    personalGoal: string;
+}
+
+// Appointment
+export interface Appointment {
+    appointmentId: string;
+    userId: string;
+    doctorId: string;
+    doctorName: string;
+    hospital: string;
+    address?: string;
+    mapsUrl?: string;
+    date: string;
+    time: string;
+    status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+    healthSummaryGenerated: boolean;
+    healthSummarySent: boolean;
+    summaryText?: string;
+    createdAt: string;
+}
+
+// Doctor Slot
+export interface DoctorSlot {
+    date: string;
+    time: string;
+    available: boolean;
+}
+
+// Full Doctor Profile (for discovery)
+export interface DoctorProfile {
+    doctorId: string;
+    name: string;
+    specialty: string;
+    hospital: string;
+    city: string;
+    experience: string;
+    languages: string[];
+    consultationFee: string;
+    rating: number;
+    reviews: number;
+    focusAreas: string[];
+    address: string;
+    mapsUrl: string;
+    slots: DoctorSlot[];
 }
 
 // Health Conditions List
@@ -72,7 +190,7 @@ export const HEALTH_CONDITIONS = [
     'PCOS',
     'Endometriosis',
     'Fibroids',
-    'Thyroid Disorder',
+    'Thyroid Condition',
     'Anemia',
     'Diabetes',
     'Hypertension',

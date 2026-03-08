@@ -17,6 +17,7 @@ import {
 } from '@/lib/aws/dynamodb';
 import { reinitializeClients } from '@/lib/aws/config';
 import { UserProfile, OnboardingData } from '@/types';
+import { buildHealthContext } from '@/lib/buildHealthContext';
 
 interface AuthContextType {
     user: CognitoAuthUser | null;
@@ -29,8 +30,10 @@ interface AuthContextType {
     logout: () => Promise<void>;
     resetPassword: (email: string) => Promise<void>;
     completeOnboarding: (data: OnboardingData) => Promise<void>;
+    updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
     refreshUserProfile: () => Promise<void>;
     refreshUser: () => Promise<CognitoAuthUser | null>;
+    loginAsDemo: () => Promise<void>;
     clearError: () => void;
 }
 
@@ -53,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             console.log('Fetching user profile for:', userId);
             let profile = await getUserProfile(userId);
-            
+
             // If profile doesn't exist, create a basic one
             if (!profile) {
                 console.log('Creating new user profile for:', userId);
@@ -69,11 +72,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     language: 'en',
                     ageRange: '25-34' as const,
                 };
-                
+
                 try {
                     await createUserProfile(newProfile);
                     console.log('New user profile created successfully');
-                    
+
                     // Fetch the newly created profile
                     profile = await getUserProfile(userId);
                 } catch (createError) {
@@ -82,17 +85,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     profile = newProfile as UserProfile;
                 }
             }
-            
+
             console.log('Setting user profile:', profile);
+
+            // Compute healthContextSummary for users who completed onboarding
+            // before this feature was added (one-time migration)
+            if (
+                profile &&
+                profile.onboardingComplete &&
+                !profile.healthContextSummary
+            ) {
+                try {
+                    const healthContextSummary = buildHealthContext(profile);
+                    profile.healthContextSummary = healthContextSummary;
+                    // Persist to DynamoDB in background (don't block profile load)
+                    updateUserProfileDB(userId, { healthContextSummary }).catch((err) =>
+                        console.error('Failed to persist computed healthContextSummary:', err),
+                    );
+                    console.log('Computed and saved missing healthContextSummary');
+                } catch (err) {
+                    console.error('Error computing healthContextSummary:', err);
+                }
+            }
+
             setUserProfile(profile);
         } catch (err: any) {
             console.error('Error fetching user profile:', err);
-            
+
             // Don't show error for offline scenarios
             if (!err.message?.includes('offline') && !err.message?.includes('NetworkingError')) {
                 setError('Unable to load profile. Please check your connection.');
             }
-            
+
             // Set a minimal profile to prevent auth loops
             const fallbackProfile: UserProfile = {
                 id: userId,
@@ -106,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 language: 'en',
                 ageRange: '25-34',
             };
-            
+
             setUserProfile(fallbackProfile);
         }
     };
@@ -125,13 +149,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const idToken = localStorage.getItem('idToken');
                 const accessToken = localStorage.getItem('accessToken');
                 const userEmail = localStorage.getItem('userEmail');
-                
-                console.log('Stored auth data:', { 
-                    hasIdToken: !!idToken, 
+
+                console.log('Stored auth data:', {
+                    hasIdToken: !!idToken,
                     hasAccessToken: !!accessToken,
-                    userEmail 
+                    userEmail
                 });
-                
+
                 if (idToken && accessToken && userEmail) {
                     // Create user object from stored data
                     const authUser: CognitoAuthUser = {
@@ -140,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         attributes: { email: userEmail },
                         session: null as any, // We have tokens but not full session object
                     };
-                    
+
                     console.log('Setting user from stored tokens:', authUser);
                     setUser(authUser);
                     // Reinitialize AWS clients with new credentials
@@ -227,7 +251,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Reinitialize AWS clients with new credentials
             reinitializeClients();
             await fetchUserProfile(email);
-            
+
             // Return the user object so caller can verify state is set
             return authUser;
         } catch (err: any) {
@@ -271,22 +295,81 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!user) throw new Error('No user logged in');
 
         console.log('Completing onboarding for user:', user.username);
-        
+
+        // Build a partial profile from the onboarding data to compute health context
+        const profileSnapshot: UserProfile = {
+            uid: user.username,
+            email: user.email || user.username,
+            displayName: userProfile?.displayName,
+            ageRange: data.ageRange,
+            conditions: data.conditions,
+            language: data.language,
+            onboardingComplete: true,
+            createdAt: userProfile?.createdAt || new Date().toISOString(),
+            averageCycleLength: data.periodDuration ? Math.round(28) : 28,
+            activityLevel: data.activityLevel,
+            heightRange: data.heightRange,
+            lastPeriodStart: data.lastPeriodStart,
+            previousPeriodDates: data.previousPeriodDates,
+            avgCycleLength: data.periodDuration,
+            cycleRegularity: data.cycleRegularity,
+            dietType: data.dietType,
+            stapleGrain: data.stapleGrain,
+            ironRichFoodFrequency: data.ironRichFoodFrequency,
+            waterIntake: data.waterIntake,
+            caffeineIntake: data.caffeineIntake,
+            sleepHabit: data.sleepHabit,
+            recentPainLevel: data.recentPainLevel,
+            recentMoodPattern: data.recentMoodPattern,
+            regularSymptoms: data.regularSymptoms,
+            hasDoctorConsultation: data.hasDoctorConsultation,
+            personalGoal: data.personalGoal,
+        };
+
+        // Generate health context summary for AI personalisation
+        const healthContextSummary = buildHealthContext(profileSnapshot);
+
         const updates: Partial<UserProfile> = {
             ageRange: data.ageRange,
             conditions: data.conditions,
             language: data.language,
             onboardingComplete: true,
+            activityLevel: data.activityLevel,
+            heightRange: data.heightRange,
+            lastPeriodStart: data.lastPeriodStart,
+            previousPeriodDates: data.previousPeriodDates,
+            avgCycleLength: data.periodDuration,
+            cycleRegularity: data.cycleRegularity,
+            dietType: data.dietType,
+            stapleGrain: data.stapleGrain,
+            ironRichFoodFrequency: data.ironRichFoodFrequency,
+            waterIntake: data.waterIntake,
+            caffeineIntake: data.caffeineIntake,
+            sleepHabit: data.sleepHabit,
+            recentPainLevel: data.recentPainLevel,
+            recentMoodPattern: data.recentMoodPattern,
+            regularSymptoms: data.regularSymptoms,
+            hasDoctorConsultation: data.hasDoctorConsultation,
+            personalGoal: data.personalGoal,
+            healthContextSummary,
         };
 
         await updateUserProfileDB(user.username, updates);
-        console.log('Profile updated in DynamoDB');
-        
+        console.log('Profile updated in DynamoDB with health context');
+
         setUserProfile((prev) => {
             const updated = prev ? { ...prev, ...updates } : null;
             console.log('Updated userProfile state:', updated);
             return updated;
         });
+    };
+
+    // Update user profile in DynamoDB and local state
+    const updateProfile = async (updates: Partial<UserProfile>) => {
+        if (!user) throw new Error('No user logged in');
+
+        await updateUserProfileDB(user.username, updates);
+        setUserProfile((prev) => prev ? { ...prev, ...updates } : null);
     };
 
     // Refresh user profile
@@ -303,13 +386,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const idToken = localStorage.getItem('idToken');
             const accessToken = localStorage.getItem('accessToken');
             const userEmail = localStorage.getItem('userEmail');
-            
-            console.log('Stored tokens:', { 
-                hasIdToken: !!idToken, 
+
+            console.log('Stored tokens:', {
+                hasIdToken: !!idToken,
                 hasAccessToken: !!accessToken,
                 userEmail
             });
-            
+
             if (idToken && accessToken && userEmail) {
                 const authUser: CognitoAuthUser = {
                     username: userEmail,
@@ -317,13 +400,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     attributes: { email: userEmail },
                     session: null as any,
                 };
-                
+
                 console.log('Setting user from tokens:', authUser);
                 setUser(authUser);
                 // Reinitialize AWS clients with new credentials
                 reinitializeClients();
                 await fetchUserProfile(userEmail);
-                
+
                 return authUser;
             }
             console.log('No tokens found');
@@ -332,6 +415,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error('Error refreshing user:', err);
             return null;
         }
+    };
+
+    // Login as demo user (no Cognito needed)
+    const loginAsDemo = async () => {
+        console.log('Logging in as demo user...');
+
+        // Set synthetic tokens so auth guard passes
+        localStorage.setItem('idToken', 'demo-token');
+        localStorage.setItem('accessToken', 'demo-token');
+        localStorage.setItem('refreshToken', 'demo-token');
+        localStorage.setItem('userEmail', 'demo-user-001');
+
+        const demoUser: CognitoAuthUser = {
+            username: 'demo-user-001',
+            email: 'demo@ovira.ai',
+            attributes: { email: 'demo@ovira.ai' },
+            session: null as any,
+        };
+
+        setUser(demoUser);
+        reinitializeClients();
+        await fetchUserProfile('demo-user-001');
     };
 
     return (
@@ -347,8 +452,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 logout,
                 resetPassword,
                 completeOnboarding,
+                updateProfile,
                 refreshUserProfile,
                 refreshUser,
+                loginAsDemo,
                 clearError,
             }}
         >

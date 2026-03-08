@@ -28,11 +28,15 @@ export function getDaysUntilNextPeriod(lastPeriodStart: Date, averageCycleLength
     return differenceInDays(nextPeriod, new Date());
 }
 
-// Get cycle phase
+// Get cycle phase (proportional to actual cycle length)
 export function getCyclePhase(cycleDay: number, averageCycleLength: number = 28): string {
-    if (cycleDay <= 5) return 'Menstrual';
-    if (cycleDay <= 13) return 'Follicular';
-    if (cycleDay <= 15) return 'Ovulation';
+    const menstrualEnd = Math.round(averageCycleLength * 0.18);   // ~5 days of 28
+    const follicularEnd = Math.round(averageCycleLength * 0.46);  // ~13 days of 28
+    const ovulationEnd = Math.round(averageCycleLength * 0.54);   // ~15 days of 28
+
+    if (cycleDay <= menstrualEnd) return 'Menstrual';
+    if (cycleDay <= follicularEnd) return 'Follicular';
+    if (cycleDay <= ovulationEnd) return 'Ovulation';
     if (cycleDay <= averageCycleLength) return 'Luteal';
     return 'Expected Period';
 }

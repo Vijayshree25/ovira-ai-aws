@@ -40,7 +40,7 @@ export default function CalendarModal({
   // Fetch symptom logs for current month
   const fetchMonthData = useCallback(async (year: number, month: number) => {
     const monthKey = getMonthKey(year, month);
-    
+
     // Check cache first
     const cachedData = cache.get(monthKey);
     if (cachedData) {
@@ -58,16 +58,16 @@ export default function CalendarModal({
       console.log(`Fetching symptom logs for ${monthKey} (${year}-${month + 1})`);
       const logs = await getSymptomLogsByMonth(userId, year, month);
       console.log(`Retrieved ${logs.length} symptom logs for ${monthKey}`);
-      
+
       // Cache the results
       cache.set(monthKey, logs);
-      
+
       // Convert to Map for easy lookup
       const logsMap = new Map<string, SymptomLog>();
       logs.forEach(log => {
         // Handle timezone issues by using the date as intended by the user
         let dateKey: string;
-        
+
         if (log.date.includes('T')) {
           // If it's an ISO string, parse it and format as local date
           const logDate = new Date(log.date);
@@ -79,18 +79,18 @@ export default function CalendarModal({
           // If it's already in YYYY-MM-DD format, use as is
           dateKey = log.date;
         }
-        
+
         console.log(`Mapping log date ${log.date} to calendar date ${dateKey}, flowLevel: ${log.flowLevel}`);
         logsMap.set(dateKey, log);
       });
-      
+
       console.log('Final logsMap:', Array.from(logsMap.entries()).map(([key, val]) => ({ key, flowLevel: val.flowLevel })));
-      
+
       setDataState({ symptomLogs: logsMap, isLoading: false, error: null });
     } catch (error) {
       console.error('Failed to fetch symptom logs:', error);
       let errorMessage = 'Failed to load calendar data. Please try again.';
-      
+
       if (error instanceof Error) {
         if (error.message.includes('ValidationException')) {
           errorMessage = 'Database configuration issue. Please contact support.';
@@ -100,16 +100,23 @@ export default function CalendarModal({
           errorMessage = `Failed to load calendar data: ${error.message}`;
         }
       }
-      
-      setDataState(prev => ({ 
-        ...prev, 
-        isLoading: false, 
+
+      setDataState(prev => ({
+        ...prev,
+        isLoading: false,
         error: errorMessage
       }));
     }
   }, [userId, cache]);
 
+  // Handle direct month/year jump from dropdown
+  const handleJumpToMonth = useCallback((newYear: number, newMonth: number) => {
+    setCurrentYear(newYear);
+    setCurrentMonth(newMonth);
+  }, []);
+
   // Handle month navigation
+
   const handlePreviousMonth = useCallback(() => {
     if (currentMonth === 0) {
       setCurrentYear(prev => prev - 1);
@@ -202,12 +209,13 @@ export default function CalendarModal({
           <h2 id="calendar-modal-title" className="sr-only">
             Calendar View
           </h2>
-          
+
           <CalendarHeader
             year={currentYear}
             month={currentMonth}
             onPreviousMonth={handlePreviousMonth}
             onNextMonth={handleNextMonth}
+            onJumpToMonth={handleJumpToMonth}
             canNavigateNext={canNavigateNext}
           />
 

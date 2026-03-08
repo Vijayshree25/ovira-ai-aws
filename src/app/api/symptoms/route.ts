@@ -24,17 +24,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create unique ID for the log using timestamp
-    const timestamp = new Date(date).getTime();
-    const id = `${userId}#${timestamp}`;
+    // Normalize date to YYYY-MM-DD to ensure one record per user per date
+    const dateObj = new Date(date);
+    const normalizedDate = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+    const id = `${userId}#${normalizedDate}`;
 
     const command = new PutCommand({
       TableName: process.env.NEXT_PUBLIC_DYNAMODB_SYMPTOMS_TABLE!,
       Item: {
-        id, // Primary key
+        id, // Primary key — deterministic per user+date for upsert
         userId,
-        timestamp,
-        date: new Date(date).toISOString(),
+        timestamp: dateObj.getTime(),
+        date: normalizedDate,
         flowLevel,
         painLevel,
         mood,
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
         symptoms: symptoms || [],
         notes: notes || null,
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       },
     });
 
@@ -78,24 +80,30 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Use Scan with filter since we're using simple id key
+    // Scan all items and filter by userId (no Limit on Scan — Limit restricts items *scanned*, not *returned*)
     const command = new ScanCommand({
       TableName: process.env.NEXT_PUBLIC_DYNAMODB_SYMPTOMS_TABLE!,
       FilterExpression: 'userId = :userId',
       ExpressionAttributeValues: {
         ':userId': userId,
       },
-      Limit: limit,
     });
 
     const response = await docClient.send(command);
 
-    // Sort by timestamp descending (newest first)
-    const sortedLogs = (response.Items || []).sort((a: any, b: any) => b.timestamp - a.timestamp);
+    // Sort by date descending (newest first), handling both YYYY-MM-DD and ISO formats
+    const sortedLogs = (response.Items || []).sort((a: any, b: any) => {
+      const aDate = a.date.includes('T') ? new Date(a.date).getTime() : new Date(a.date + 'T00:00:00').getTime();
+      const bDate = b.date.includes('T') ? new Date(b.date).getTime() : new Date(b.date + 'T00:00:00').getTime();
+      return bDate - aDate;
+    });
+
+    // Slice to the requested limit
+    const limitedLogs = sortedLogs.slice(0, limit);
 
     return NextResponse.json({
       success: true,
-      logs: sortedLogs,
+      logs: limitedLogs,
     });
   } catch (error: any) {
     console.error('Error fetching symptom logs:', error);

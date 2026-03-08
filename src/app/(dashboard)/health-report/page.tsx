@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
-// TODO: Replace with AWS DynamoDB queries
 import { SymptomLog } from '@/types';
 import { formatDate } from '@/lib/utils';
 import {
@@ -30,9 +29,58 @@ import {
     Activity,
     User,
     Clock,
-    Printer
+    Printer,
+    Share2,
+    Shield,
+    BookOpen
 } from 'lucide-react';
 import Link from 'next/link';
+
+// ─── Clinical Source Mapping ─────────────────────────────────────────────────
+
+const CLINICAL_SOURCES: Record<string, string> = {
+    pcos: 'WHO PCOS Fact Sheet (2024) + Rotterdam Criteria (2003)',
+    anemia: 'NIH Iron Deficiency — Health Professional Fact Sheet (2024)',
+    endometriosis: 'WHO Endometriosis Fact Sheet (2024)',
+    pms: 'ACOG Clinical Practice Guideline No. 7 (2023)',
+    general: 'ACOG Clinical Practice Guideline No. 7 (2023)',
+    urgent: 'WHO Clinical Guidelines (2024)',
+};
+
+const FULL_CITATIONS = [
+    {
+        id: 'acog',
+        title: 'ACOG Clinical Practice Guideline No. 7 — Management of Premenstrual Patterns',
+        year: '2023',
+        source: 'American College of Obstetricians and Gynecologists',
+    },
+    {
+        id: 'who-pcos',
+        title: 'Polycystic Ovary Syndrome — Key Facts',
+        year: '2024',
+        source: 'World Health Organization',
+    },
+    {
+        id: 'who-endo',
+        title: 'Endometriosis — Key Facts',
+        year: '2024',
+        source: 'World Health Organization',
+    },
+    {
+        id: 'nih-iron',
+        title: 'Iron — Health Professional Fact Sheet',
+        year: '2024',
+        source: 'National Institutes of Health, Office of Dietary Supplements',
+    },
+    {
+        id: 'figo-hmb',
+        title: 'FIGO Classification of Causes of Abnormal Uterine Bleeding',
+        year: '2018 (rev. 2023)',
+        source: 'International Federation of Gynecology and Obstetrics',
+    },
+];
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface HealthReportData {
     executiveSummary: string;
@@ -53,9 +101,11 @@ interface HealthReportData {
     riskAssessment: {
         condition: string;
         riskLevel: 'low' | 'medium' | 'high';
-        confidence: string;
+        confidence: string | number;
         indicators: string[];
         recommendation: string;
+        clinicalBasis?: string;
+        type?: string;
     }[];
     recommendations: string[];
     questionsForDoctor: string[];
@@ -74,18 +124,68 @@ interface HealthReportData {
     statistics: {
         totalLogs: number;
         avgPain: number;
+        avgPainScore?: number;
         avgSleep: number;
+        avgSleepHours?: number;
         heavyFlowDays: number;
         lowEnergyDays: number;
         poorMoodDays: number;
-        topSymptoms: string[];
+        topSymptoms: string[] | { symptom: string; count: number; percentage: number }[];
         moodCounts: Record<string, number>;
         flowCounts: Record<string, number>;
         energyCounts: Record<string, number>;
         highPainDays: number;
         flowDays: number;
     };
+    citations?: { source: string; excerpt: string; url?: string }[];
+    ragEnabled?: boolean;
 }
+
+// ─── Confidence Bar Component ───────────────────────────────────────────────
+
+function ConfidenceBar({ confidence }: { confidence: number }) {
+    const [width, setWidth] = useState(0);
+
+    useEffect(() => {
+        // Trigger animation after mount
+        const timer = setTimeout(() => setWidth(confidence), 100);
+        return () => clearTimeout(timer);
+    }, [confidence]);
+
+    const barColor =
+        confidence > 70
+            ? 'bg-red-500'
+            : confidence >= 50
+                ? 'bg-amber-500'
+                : 'bg-emerald-500';
+
+    const textColor =
+        confidence > 70
+            ? 'text-red-700'
+            : confidence >= 50
+                ? 'text-amber-700'
+                : 'text-emerald-700';
+
+    return (
+        <div className="mt-3">
+            <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-gray-600">Pattern strength</span>
+                <span className={`text-xs font-bold ${textColor}`}>{confidence}%</span>
+            </div>
+            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                    className={`h-full rounded-full ${barColor}`}
+                    style={{
+                        width: `${width}%`,
+                        transition: 'width 0.7s ease-out',
+                    }}
+                />
+            </div>
+        </div>
+    );
+}
+
+// ─── Page Component ─────────────────────────────────────────────────────────
 
 export default function HealthReportPage() {
     const { user, userProfile } = useAuth();
@@ -94,6 +194,7 @@ export default function HealthReportPage() {
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [checkedQuestions, setCheckedQuestions] = useState<Set<number>>(new Set());
 
     useEffect(() => {
         const fetchLogs = async () => {
@@ -127,12 +228,12 @@ export default function HealthReportPage() {
 
         setGenerating(true);
         setError(null);
+        setCheckedQuestions(new Set());
 
         try {
-            // Properly serialize logs - only include serializable fields
             const serializedLogs = logs.map((log) => ({
                 id: log.id,
-                date: log.date?.toDate?.()?.toISOString() || new Date().toISOString(),
+                date: (log.date as any)?.toDate?.()?.toISOString() || new Date().toISOString(),
                 flowLevel: log.flowLevel,
                 painLevel: log.painLevel,
                 mood: log.mood,
@@ -152,7 +253,7 @@ export default function HealthReportPage() {
                         ageRange: userProfile?.ageRange || '',
                         conditions: userProfile?.conditions || [],
                         averageCycleLength: userProfile?.averageCycleLength || 28,
-                        lastPeriodStart: userProfile?.lastPeriodStart?.toDate?.()?.toISOString() || null,
+                        lastPeriodStart: (userProfile?.lastPeriodStart as any)?.toDate?.()?.toISOString() || null,
                     },
                 }),
             });
@@ -174,6 +275,28 @@ export default function HealthReportPage() {
 
     const handlePrint = () => {
         window.print();
+    };
+
+    const handleShareCheckedQuestions = () => {
+        if (!report) return;
+        const selected = report.questionsForDoctor.filter((_, i) => checkedQuestions.has(i));
+        const text = `Questions for my doctor:\n\n${selected.map((q, i) => `${i + 1}. ${q}`).join('\n')}`;
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text);
+            alert('Questions copied to clipboard!');
+        }
+    };
+
+    const toggleQuestion = (index: number) => {
+        setCheckedQuestions((prev) => {
+            const next = new Set(prev);
+            if (next.has(index)) {
+                next.delete(index);
+            } else {
+                next.add(index);
+            }
+            return next;
+        });
     };
 
     const getRiskColor = (level: 'low' | 'medium' | 'high') => {
@@ -198,6 +321,30 @@ export default function HealthReportPage() {
         return <Minus className="w-4 h-4 text-text-muted" />;
     };
 
+    /** Get a numeric confidence value from a string or number. */
+    const getConfidenceNumber = (confidence: string | number): number => {
+        if (typeof confidence === 'number') return confidence;
+        const parsed = parseInt(confidence, 10);
+        return isNaN(parsed) ? 50 : parsed;
+    };
+
+    /** Compute tracking period info. */
+    const getTrackingPeriod = () => {
+        if (!report) return null;
+        const start = report.periodStart ? new Date(report.periodStart) : null;
+        const end = report.periodEnd ? new Date(report.periodEnd) : null;
+        if (!start || !end) return null;
+        const days = Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        return {
+            days,
+            startStr: formatDate(start, 'MMM d, yyyy'),
+            endStr: formatDate(end, 'MMM d, yyyy'),
+        };
+    };
+
+    const avgPain = report?.statistics?.avgPainScore ?? report?.statistics?.avgPain;
+    const avgSleep = report?.statistics?.avgSleepHours ?? report?.statistics?.avgSleep;
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[50vh]">
@@ -208,7 +355,7 @@ export default function HealthReportPage() {
 
     return (
         <div className="max-w-5xl mx-auto space-y-6 print:max-w-none print:space-y-4">
-            {/* Header - Hide print button when printing */}
+            {/* Header */}
             <div className="flex items-center gap-4 mb-6 print:mb-4">
                 <Link
                     href="/reports"
@@ -292,9 +439,29 @@ export default function HealthReportPage() {
                 </Card>
             )}
 
-            {/* Report Content */}
+            {/* ── Report Content ─────────────────────────────────────────────── */}
             {report && (
                 <div className="space-y-6 print:space-y-4">
+
+                    {/* ① CLINICAL GUIDELINES HEADER */}
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 flex items-start gap-3">
+                        <Shield className="w-6 h-6 text-indigo-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-sm font-semibold text-indigo-800">
+                                ⚕️ Pattern analysis grounded in guidelines from WHO, ACOG, and NIH
+                            </p>
+                            <p className="text-xs text-indigo-600 mt-0.5">
+                                This report is for informational purposes only. Not a diagnosis.
+                            </p>
+                            {report.ragEnabled && (
+                                <p className="text-xs text-indigo-500 mt-1 flex items-center gap-1">
+                                    <BookOpen size={12} />
+                                    Powered by trusted clinical knowledge base
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Report Header with Patient Info */}
                     <Card variant="gradient" className="print:border print:border-border">
                         <CardContent className="pt-6">
@@ -349,7 +516,7 @@ export default function HealthReportPage() {
                         </Card>
                     )}
 
-                    {/* Executive Summary */}
+                    {/* ② EXECUTIVE SUMMARY (enhanced) */}
                     <Card variant="elevated">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -362,6 +529,16 @@ export default function HealthReportPage() {
                             <p className="text-text-primary leading-relaxed text-lg">
                                 {report.executiveSummary}
                             </p>
+                            {/* ③ Tracking period line */}
+                            {(() => {
+                                const tp = getTrackingPeriod();
+                                return tp ? (
+                                    <p className="text-sm text-gray-500 mt-3 flex items-center gap-1">
+                                        <Calendar size={14} className="text-gray-400" />
+                                        This report is based on {report.totalLogsAnalyzed} logged entries over {tp.days} days ({tp.startStr} — {tp.endStr})
+                                    </p>
+                                ) : null;
+                            })()}
                         </CardContent>
                     </Card>
 
@@ -377,14 +554,14 @@ export default function HealthReportPage() {
                         <Card variant="elevated">
                             <CardContent className="pt-4 text-center">
                                 <Activity className="w-6 h-6 text-accent mx-auto mb-2" />
-                                <p className="text-2xl font-bold">{typeof report.statistics?.avgPain === 'number' && isFinite(report.statistics.avgPain) ? report.statistics.avgPain.toFixed(1) : 'N/A'}</p>
+                                <p className="text-2xl font-bold">{typeof avgPain === 'number' && isFinite(avgPain) ? avgPain.toFixed(1) : 'N/A'}</p>
                                 <p className="text-xs text-text-muted">Avg Pain /10</p>
                             </CardContent>
                         </Card>
                         <Card variant="elevated">
                             <CardContent className="pt-4 text-center">
                                 <Moon className="w-6 h-6 text-secondary mx-auto mb-2" />
-                                <p className="text-2xl font-bold">{typeof report.statistics?.avgSleep === 'number' && isFinite(report.statistics.avgSleep) ? `${report.statistics.avgSleep.toFixed(1)}h` : 'N/A'}</p>
+                                <p className="text-2xl font-bold">{typeof avgSleep === 'number' && isFinite(avgSleep) ? `${avgSleep.toFixed(1)}h` : 'N/A'}</p>
                                 <p className="text-xs text-text-muted">Avg Sleep</p>
                             </CardContent>
                         </Card>
@@ -397,7 +574,7 @@ export default function HealthReportPage() {
                         </Card>
                     </div>
 
-                    {/* Cycle Overview Chart */}
+                    {/* Cycle Overview */}
                     <Card variant="elevated">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -462,7 +639,6 @@ export default function HealthReportPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {/* Most Frequent Symptoms */}
                             {report.symptomAnalysis.mostFrequentSymptoms.length > 0 && (
                                 <div className="mb-6">
                                     <p className="text-sm font-medium mb-3">Most Frequent Symptoms</p>
@@ -485,7 +661,6 @@ export default function HealthReportPage() {
                                 </div>
                             )}
 
-                            {/* Pain Trend */}
                             <div className="grid md:grid-cols-2 gap-4 mb-4">
                                 <div className="p-4 rounded-xl bg-surface-elevated">
                                     <div className="flex items-center justify-between mb-1">
@@ -500,7 +675,6 @@ export default function HealthReportPage() {
                                 </div>
                             </div>
 
-                            {/* Mood & Energy */}
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div className="p-4 rounded-xl bg-surface-elevated">
                                     <p className="text-sm text-text-muted mb-1">Mood Pattern</p>
@@ -512,7 +686,6 @@ export default function HealthReportPage() {
                                 </div>
                             </div>
 
-                            {/* Correlations */}
                             {report.symptomAnalysis.notableCorrelations.length > 0 && (
                                 <div className="mt-4 p-4 rounded-xl bg-primary/5 border border-primary/20">
                                     <p className="text-sm font-medium text-primary mb-2">Notable Correlations</p>
@@ -529,14 +702,14 @@ export default function HealthReportPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Health Risk Assessment */}
+                    {/* ④ HEALTH RISK ASSESSMENT (enhanced with clinical basis + confidence bar) */}
                     <Card variant="elevated">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Stethoscope className="w-5 h-5 text-primary" />
                                 Health Risk Assessment
                             </CardTitle>
-                            <CardDescription>Based on pattern analysis of your symptom data</CardDescription>
+                            <CardDescription>Pattern analysis grounded in clinical guidelines</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {report.riskAssessment.length === 0 ? (
@@ -549,36 +722,56 @@ export default function HealthReportPage() {
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    {report.riskAssessment.map((risk, i) => (
-                                        <div
-                                            key={i}
-                                            className={`p-4 rounded-xl border ${getRiskColor(risk.riskLevel)}`}
-                                        >
-                                            <div className="flex items-start gap-3">
-                                                {getRiskIcon(risk.riskLevel)}
-                                                <div className="flex-1">
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <p className="font-semibold">{risk.condition}</p>
-                                                        <span className={`text-xs px-2 py-0.5 rounded-full ${getRiskColor(risk.riskLevel)}`}>
-                                                            {risk.riskLevel.toUpperCase()} RISK
-                                                        </span>
+                                    {report.riskAssessment.map((risk, i) => {
+                                        const confidenceNum = getConfidenceNumber(risk.confidence);
+                                        const riskType = risk.type || risk.condition.toLowerCase().replace(/[^a-z]/g, '');
+                                        const clinicalSource =
+                                            risk.clinicalBasis ||
+                                            CLINICAL_SOURCES[riskType] ||
+                                            CLINICAL_SOURCES['general'];
+
+                                        return (
+                                            <div
+                                                key={i}
+                                                className={`p-4 rounded-xl border ${getRiskColor(risk.riskLevel)}`}
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    {getRiskIcon(risk.riskLevel)}
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <p className="font-semibold">{risk.condition}</p>
+                                                            <span className={`text-xs px-2 py-0.5 rounded-full ${getRiskColor(risk.riskLevel)}`}>
+                                                                {risk.riskLevel.toUpperCase()} RISK
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Indicators */}
+                                                        <div className="mb-2">
+                                                            <p className="text-xs font-medium mb-1">Indicators:</p>
+                                                            <ul className="text-sm opacity-80">
+                                                                {risk.indicators.map((ind, j) => (
+                                                                    <li key={j}>• {ind}</li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+
+                                                        <p className="text-sm font-medium mb-2">{risk.recommendation}</p>
+
+                                                        {/* CONFIDENCE PROGRESS BAR */}
+                                                        <ConfidenceBar confidence={confidenceNum} />
+
+                                                        {/* CLINICAL BASIS BADGE */}
+                                                        <div className="mt-3 bg-blue-50 border-l-4 border-blue-400 p-2 rounded">
+                                                            <p className="text-xs text-blue-800">
+                                                                <span className="font-semibold">⚕️ Clinical basis:</span>{' '}
+                                                                {clinicalSource}
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                    <p className="text-sm opacity-80 mb-2">
-                                                        Confidence: {risk.confidence}
-                                                    </p>
-                                                    <div className="mb-2">
-                                                        <p className="text-xs font-medium mb-1">Indicators:</p>
-                                                        <ul className="text-sm opacity-80">
-                                                            {risk.indicators.map((ind, j) => (
-                                                                <li key={j}>• {ind}</li>
-                                                            ))}
-                                                        </ul>
-                                                    </div>
-                                                    <p className="text-sm font-medium">{risk.recommendation}</p>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </CardContent>
@@ -606,25 +799,56 @@ export default function HealthReportPage() {
                             </CardContent>
                         </Card>
 
-                        {/* Questions for Doctor */}
+                        {/* ⑤ QUESTIONS FOR DOCTOR (enhanced with checklist) */}
                         <Card variant="elevated">
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <MessageSquare className="w-5 h-5 text-accent" />
-                                    Questions for Your Doctor
-                                </CardTitle>
+                                <div className="flex items-center justify-between">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <MessageSquare className="w-5 h-5 text-accent" />
+                                        Questions for Your Doctor
+                                    </CardTitle>
+                                    {checkedQuestions.size > 0 && (
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={handleShareCheckedQuestions}
+                                            leftIcon={<Share2 size={14} />}
+                                            className="print:hidden"
+                                        >
+                                            Copy Selected
+                                        </Button>
+                                    )}
+                                </div>
                             </CardHeader>
                             <CardContent>
                                 <ul className="space-y-3">
                                     {report.questionsForDoctor.map((q, i) => (
-                                        <li key={i} className="flex items-start gap-2">
-                                            <span className="w-5 h-5 rounded-full bg-accent/10 text-accent text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
-                                                {i + 1}
+                                        <li key={i} className="flex items-start gap-3">
+                                            <button
+                                                onClick={() => toggleQuestion(i)}
+                                                className={`w-5 h-5 rounded border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors print:hidden ${checkedQuestions.has(i)
+                                                    ? 'bg-accent border-accent text-white'
+                                                    : 'border-gray-300 hover:border-accent'
+                                                    }`}
+                                                aria-label={`Toggle question ${i + 1}`}
+                                            >
+                                                {checkedQuestions.has(i) && (
+                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                )}
+                                            </button>
+                                            {/* Print-only checkbox */}
+                                            <span className="hidden print:inline-block w-4 h-4 border border-gray-400 rounded flex-shrink-0 mt-0.5" />
+                                            <span className={`text-sm ${checkedQuestions.has(i) ? 'text-accent font-medium' : ''}`}>
+                                                {q}
                                             </span>
-                                            <span className="text-sm">{q}</span>
                                         </li>
                                     ))}
                                 </ul>
+                                <p className="text-xs text-text-muted mt-4 print:hidden">
+                                    Tick the questions you want to discuss, then copy or print to share with your doctor.
+                                </p>
                             </CardContent>
                         </Card>
                     </div>
@@ -649,6 +873,29 @@ export default function HealthReportPage() {
                         </CardContent>
                     </Card>
 
+                    {/* ⑥ CLINICAL SOURCES (visible in print + on screen) */}
+                    <Card variant="outlined" className="border-indigo-200 bg-indigo-50/50">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-indigo-800">
+                                <BookOpen className="w-5 h-5" />
+                                Clinical Sources
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ol className="space-y-2">
+                                {FULL_CITATIONS.map((cite, i) => (
+                                    <li key={cite.id} className="text-xs text-indigo-700">
+                                        <span className="font-semibold">[{i + 1}]</span>{' '}
+                                        {cite.source}. <em>&ldquo;{cite.title}&rdquo;</em> ({cite.year}).
+                                    </li>
+                                ))}
+                            </ol>
+                            <p className="text-xs text-indigo-500 mt-3">
+                                Pattern analysis references these clinical guidelines for decision-support context only.
+                            </p>
+                        </CardContent>
+                    </Card>
+
                     {/* Disclaimer */}
                     <Card variant="outlined" className="border-warning/30 bg-warning/5">
                         <CardContent className="pt-6 flex gap-3">
@@ -668,6 +915,7 @@ export default function HealthReportPage() {
                     <div className="hidden print:block text-center text-xs text-text-muted mt-8 pt-4 border-t">
                         <p>Generated by Ovira AI Health Report • {formatDate(new Date(report.generatedAt), 'MMMM d, yyyy')}</p>
                         <p>This document is for informational purposes only and does not constitute medical advice.</p>
+                        <p className="mt-2 font-medium">Clinical Sources: ACOG CPG No. 7 (2023) • WHO PCOS (2024) • WHO Endometriosis (2024) • NIH Iron/IDA (2024) • FIGO HMB Classification (2023)</p>
                     </div>
                 </div>
             )}

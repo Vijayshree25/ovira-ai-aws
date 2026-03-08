@@ -1,36 +1,54 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
-import { Home, Calendar, MessageCircle, FileText, Settings, LogOut, Menu, X, User } from 'lucide-react';
-import { useState } from 'react';
+import { Home, Calendar, MessageCircle, FileText, Settings, LogOut, Menu, X, User, Bell, Users, BookOpen, Clock } from 'lucide-react';
+import {
+    loadSettings, saveSettings, loadNotifications, getUnreadCount,
+    checkAndGenerateNotifications
+} from '@/lib/utils/notifications';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const { user, userProfile, loading, logout } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    // Check for due notifications on mount and periodically
+    useEffect(() => {
+        const checkNotifs = () => {
+            const settings = loadSettings();
+            // Sync settings to service worker for offline notifications
+            saveSettings(settings);
+            // Check and generate notifications (no cycle info here, dashboard handles that)
+            checkAndGenerateNotifications(settings);
+            setUnreadCount(getUnreadCount());
+        };
+
+        checkNotifs();
+        const interval = setInterval(checkNotifs, 60000); // Check every minute
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => {
-        console.log('Dashboard layout - Auth state:', { 
-            loading, 
-            hasUser: !!user, 
+        console.log('Dashboard layout - Auth state:', {
+            loading,
+            hasUser: !!user,
             hasProfile: !!userProfile,
-            onboardingComplete: userProfile?.onboardingComplete 
+            onboardingComplete: userProfile?.onboardingComplete
         });
-        
+
         if (!loading) {
             if (!user) {
                 console.log('No user, redirecting to login');
                 router.push('/login');
+            } else if (userProfile && userProfile.onboardingComplete === false) {
+                console.log('Onboarding incomplete, redirecting to onboarding');
+                router.push('/onboarding');
             }
-            // Temporarily disable onboarding redirect to debug
-            // else if (userProfile && userProfile.onboardingComplete === false) {
-            //     console.log('Onboarding incomplete, redirecting to onboarding');
-            //     router.push('/onboarding');
-            // }
         }
     }, [user, userProfile, loading, router]);
 
@@ -51,7 +69,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { name: 'Dashboard', href: '/dashboard', icon: Home },
         { name: 'Log Symptoms', href: '/log', icon: Calendar },
         { name: 'Chat with AI', href: '/chat', icon: MessageCircle },
+        { name: 'Doctors', href: '/doctors', icon: Users, pro: !userProfile?.isPremium },
+        { name: 'My Appointments', href: '/appointments', icon: Clock },
         { name: 'Reports', href: '/reports', icon: FileText },
+        { name: 'Health Library', href: '/articles', icon: BookOpen },
+        { name: 'Notifications', href: '/notifications', icon: Bell, badge: unreadCount },
         { name: 'Settings', href: '/settings', icon: Settings },
     ];
 
@@ -87,7 +109,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
 
                     {/* Navigation */}
-                    <nav className="flex-1 p-4 space-y-1">
+                    <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
                         {navigation.map((item) => {
                             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                             return (
@@ -96,12 +118,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     href={item.href}
                                     onClick={() => setSidebarOpen(false)}
                                     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive
-                                            ? 'bg-primary/10 text-primary font-medium'
-                                            : 'text-text-secondary hover:bg-surface-elevated hover:text-text-primary'
+                                        ? 'bg-primary/10 text-primary font-medium'
+                                        : 'text-text-secondary hover:bg-surface-elevated hover:text-text-primary'
                                         }`}
                                 >
                                     <item.icon size={20} />
-                                    {item.name}
+                                    <span className="flex-1">{item.name}</span>
+                                    {item.pro && (
+                                        <span className="bg-accent/10 text-accent text-[10px] font-bold px-2 py-0.5 rounded-full border border-accent/20">
+                                            PRO
+                                        </span>
+                                    )}
+                                    {item.badge != null && item.badge > 0 && (
+                                        <span className="bg-accent text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                                            {item.badge > 9 ? '9+' : item.badge}
+                                        </span>
+                                    )}
                                 </Link>
                             );
                         })}
@@ -151,7 +183,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             <Menu size={24} />
                         </button>
                         <span className="font-bold gradient-text">Ovira AI</span>
-                        <div className="w-10" />
+                        <Link
+                            href="/notifications"
+                            className="relative p-2 rounded-lg hover:bg-surface-elevated transition-colors"
+                        >
+                            <Bell size={20} />
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 bg-accent text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                            )}
+                        </Link>
                     </div>
                 </header>
 

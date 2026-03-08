@@ -80,6 +80,80 @@ else
 fi
 
 echo ""
+echo "Creating ovira-appointments table..."
+aws dynamodb create-table \
+    --table-name ovira-appointments \
+    --attribute-definitions \
+        AttributeName=userId,AttributeType=S \
+        AttributeName=appointmentId,AttributeType=S \
+    --key-schema \
+        AttributeName=userId,KeyType=HASH \
+        AttributeName=appointmentId,KeyType=RANGE \
+    --billing-mode PAY_PER_REQUEST \
+    --region us-east-1
+
+if [ $? -eq 0 ]; then
+    echo "ovira-appointments table created successfully!"
+else
+    echo "Failed to create ovira-appointments table or it already exists."
+fi
+
+echo ""
+echo "Creating ovira-doctors table..."
+aws dynamodb create-table \
+    --table-name ovira-doctors \
+    --attribute-definitions \
+        AttributeName=userId,AttributeType=S \
+        AttributeName=doctorId,AttributeType=S \
+    --key-schema \
+        AttributeName=userId,KeyType=HASH \
+        AttributeName=doctorId,KeyType=RANGE \
+    --billing-mode PAY_PER_REQUEST \
+    --region us-east-1
+
+if [ $? -eq 0 ]; then
+    echo "ovira-doctors table created successfully!"
+else
+    echo "Failed to create ovira-doctors table or it already exists."
+fi
+
+echo ""
+echo "Creating ovira-documents table..."
+aws dynamodb create-table \
+    --table-name ovira-documents \
+    --attribute-definitions \
+        AttributeName=userId,AttributeType=S \
+        AttributeName=docId,AttributeType=S \
+    --key-schema \
+        AttributeName=userId,KeyType=HASH \
+        AttributeName=docId,KeyType=RANGE \
+    --billing-mode PAY_PER_REQUEST \
+    --region us-east-1
+
+if [ $? -eq 0 ]; then
+    echo "ovira-documents table created successfully!"
+else
+    echo "Failed to create ovira-documents table or it already exists."
+fi
+
+echo ""
+echo "Creating ovira-articles table..."
+aws dynamodb create-table \
+    --table-name ovira-articles \
+    --attribute-definitions \
+        AttributeName=id,AttributeType=S \
+    --key-schema \
+        AttributeName=id,KeyType=HASH \
+    --billing-mode PAY_PER_REQUEST \
+    --region us-east-1
+
+if [ $? -eq 0 ]; then
+    echo "ovira-articles table created successfully!"
+else
+    echo "Failed to create ovira-articles table or it already exists."
+fi
+
+echo ""
 echo "========================================"
 echo "DynamoDB tables setup complete!"
 echo "========================================"
@@ -89,6 +163,9 @@ echo "- ovira-symptoms (for symptom logs)"
 echo "- ovira-users (for user profiles)"
 echo "- ovira-reports (for health reports)"
 echo "- ovira-chat-history (for chat messages)"
+echo "- ovira-doctors (for doctor portfolio)"
+echo "- ovira-documents (for medical records)"
+echo "- ovira-articles (for AI insights cache)"
 echo ""
 echo "You can verify the tables in AWS Console:"
 echo "https://console.aws.amazon.com/dynamodb/home?region=us-east-1#tables:"

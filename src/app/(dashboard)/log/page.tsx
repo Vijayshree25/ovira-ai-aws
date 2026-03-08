@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/Button';
@@ -15,7 +15,7 @@ import Link from 'next/link';
 
 // Lazy load the calendar modal
 const CalendarModal = dynamic(() => import('@/components/calendar/CalendarModal'), {
-  ssr: false,
+    ssr: false,
 });
 
 export default function LogPage() {
@@ -37,22 +37,23 @@ export default function LogPage() {
     const [notes, setNotes] = useState('');
 
     // Load existing log data when date changes
-    const loadExistingLog = useCallback(async (date: Date) => {
+    const loadExistingLog = async (date: Date) => {
         if (!user) return;
-        
+
         setIsLoadingExistingLog(true);
         try {
             const response = await fetch(`/api/symptoms?userId=${encodeURIComponent(user.username)}&limit=100`);
             const data = await response.json();
-            
+
             if (data.success && data.logs) {
-                // Find log for the selected date
-                const dateStr = date.toISOString().split('T')[0];
+                // Find log for the selected date (normalize to YYYY-MM-DD)
+                const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                 const existingLog = data.logs.find((log: any) => {
-                    const logDateStr = new Date(log.date).toISOString().split('T')[0];
+                    const logDate = log.date.includes('T') ? new Date(log.date) : new Date(log.date + 'T00:00:00');
+                    const logDateStr = `${logDate.getFullYear()}-${String(logDate.getMonth() + 1).padStart(2, '0')}-${String(logDate.getDate()).padStart(2, '0')}`;
                     return logDateStr === dateStr;
                 });
-                
+
                 if (existingLog) {
                     console.log('Found existing log for date:', dateStr, existingLog);
                     // Load the existing data into the form
@@ -80,12 +81,15 @@ export default function LogPage() {
         } finally {
             setIsLoadingExistingLog(false);
         }
-    }, [user]);
+    };
 
     // Load existing log when component mounts or date changes
     useEffect(() => {
-        loadExistingLog(selectedDate);
-    }, [selectedDate, loadExistingLog]); // Run when selectedDate OR loadExistingLog changes
+        if (user) {
+            loadExistingLog(selectedDate);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user]); // Only run on mount and when user changes
 
     const toggleSymptom = (symptom: string) => {
         setSymptoms((prev) =>
@@ -105,7 +109,7 @@ export default function LogPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     userId: user.username, // Use username as userId
-                    date: selectedDate.toISOString(),
+                    date: `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`,
                     flowLevel,
                     painLevel,
                     mood,
@@ -124,7 +128,7 @@ export default function LogPage() {
             }
 
             setSuccess(true);
-            
+
             // Clear calendar cache so it refetches fresh data
             try {
                 const { getCalendarCache } = await import('@/lib/utils/calendar-cache');
@@ -134,7 +138,7 @@ export default function LogPage() {
             } catch (cacheError) {
                 console.log('Could not clear cache:', cacheError);
             }
-            
+
             setTimeout(() => {
                 router.push('/dashboard');
             }, 1500);

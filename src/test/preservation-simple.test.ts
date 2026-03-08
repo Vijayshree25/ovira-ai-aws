@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { fc } from 'fast-check'
+import * as fc from 'fast-check'
 
 describe('Preservation Property Tests - Existing Authentication Behavior', () => {
   it('Property 2.1: Existing confirmed user login behavior patterns are preserved', async () => {
@@ -32,35 +32,35 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
         // Generate existing confirmed user credentials
         fc.record({
           email: fc.emailAddress(),
-          password: fc.string({ minLength: 8, maxLength: 20 }).filter(p => 
+          password: fc.string({ minLength: 8, maxLength: 20 }).filter((p: string) =>
             /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(p)
           ),
           isConfirmedUser: fc.constant(true), // These are existing confirmed users
           hasValidSession: fc.constant(true)
         }),
-        async (input) => {
+        async (input: { email: string; password: string; isConfirmedUser: boolean; hasValidSession: boolean }) => {
           // Test the behavioral patterns that must be preserved
-          
+
           // PATTERN 1: Valid email format is maintained
           expect(input.email).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
-          
+
           // PATTERN 2: Password complexity requirements are maintained
           expect(input.password.length).toBeGreaterThanOrEqual(8)
           expect(input.password).toMatch(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-          
+
           // PATTERN 3: Confirmed user status is maintained
           expect(input.isConfirmedUser).toBe(true)
-          
+
           // PATTERN 4: Session validity concept is maintained
           expect(input.hasValidSession).toBe(true)
-          
+
           // These patterns represent the existing behavior that must be preserved
           // after the registration fix is implemented
         }
       ),
-      { 
+      {
         numRuns: 10,
-        verbose: true 
+        verbose: true
       }
     )
   })
@@ -80,28 +80,28 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
       fc.asyncProperty(
         // Generate email addresses for password reset
         fc.emailAddress(),
-        async (email) => {
+        async (email: string) => {
           // Test the behavioral patterns that must be preserved
-          
+
           // PATTERN 1: Email format validation is maintained
           expect(email).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
-          
+
           // PATTERN 2: Email parameter structure is maintained
           expect(typeof email).toBe('string')
           expect(email.length).toBeGreaterThan(0)
-          
+
           // PATTERN 3: Reset request format is maintained
           const resetRequest = { email }
           expect(resetRequest).toHaveProperty('email')
           expect(resetRequest.email).toBe(email)
-          
+
           // These patterns represent the existing password reset behavior 
           // that must be preserved after the registration fix is implemented
         }
       ),
-      { 
+      {
         numRuns: 10,
-        verbose: true 
+        verbose: true
       }
     )
   })
@@ -125,33 +125,33 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
           wrongPassword: fc.string({ minLength: 1, maxLength: 20 }),
           errorCode: fc.constantFrom('NotAuthorizedException', 'UserNotFoundException')
         }),
-        async (input) => {
+        async (input: { email: string; wrongPassword: string; errorCode: string }) => {
           // Test the error handling patterns that must be preserved
-          
+
           // PATTERN 1: Error code structure is maintained
           expect(['NotAuthorizedException', 'UserNotFoundException']).toContain(input.errorCode)
-          
+
           // PATTERN 2: Email format in error scenarios is maintained
           expect(input.email).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
-          
+
           // PATTERN 3: Password parameter structure is maintained
           expect(typeof input.wrongPassword).toBe('string')
-          
+
           // PATTERN 4: Error mapping behavior is maintained
-          const expectedErrorMessage = input.errorCode === 'NotAuthorizedException' 
+          const expectedErrorMessage = input.errorCode === 'NotAuthorizedException'
             ? 'Incorrect email or password'
             : 'No account found with this email'
-          
+
           expect(expectedErrorMessage).toBeDefined()
           expect(typeof expectedErrorMessage).toBe('string')
-          
+
           // These patterns represent the existing error handling behavior 
           // that must be preserved after the registration fix is implemented
         }
       ),
-      { 
+      {
         numRuns: 10,
-        verbose: true 
+        verbose: true
       }
     )
   })
@@ -169,18 +169,18 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
 
     // Test the current Google signup behavior patterns (from auth-context.tsx)
     const expectedErrorMessage = 'Google sign-in requires additional AWS Cognito Identity Pool configuration. Please use email/password for now.'
-    
+
     // PATTERN 1: Error message structure is maintained
     expect(expectedErrorMessage).toContain('Google sign-in requires additional')
     expect(expectedErrorMessage).toContain('Please use email/password for now')
-    
+
     // PATTERN 2: Error message type is maintained
     expect(typeof expectedErrorMessage).toBe('string')
     expect(expectedErrorMessage.length).toBeGreaterThan(0)
-    
+
     // PATTERN 3: Configuration guidance is maintained
     expect(expectedErrorMessage).toContain('AWS Cognito Identity Pool configuration')
-    
+
     // These patterns represent the existing Google signup behavior 
     // that must be preserved after the registration fix is implemented
   })
@@ -201,22 +201,22 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
         // Generate OTP validation scenarios
         fc.record({
           email: fc.emailAddress(),
-          otpCode: fc.string({ minLength: 6, maxLength: 6 }).filter(code => /^\d{6}$/.test(code)),
+          otpCode: fc.string({ minLength: 6, maxLength: 6 }).filter((code: string) => /^\d{6}$/.test(code)),
           isValidCode: fc.boolean()
         }),
-        async (input) => {
+        async (input: { email: string; otpCode: string; isValidCode: boolean }) => {
           // Test the OTP validation patterns that must be preserved
-          
+
           // PATTERN 1: OTP code format is maintained
           expect(input.otpCode).toMatch(/^\d{6}$/)
           expect(input.otpCode.length).toBe(6)
-          
+
           // PATTERN 2: Email format in OTP scenarios is maintained
           expect(input.email).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
-          
+
           // PATTERN 3: Validation boolean structure is maintained
           expect(typeof input.isValidCode).toBe('boolean')
-          
+
           // PATTERN 4: OTP validation logic patterns are maintained
           if (input.isValidCode) {
             // Valid OTP codes should follow the expected format
@@ -226,14 +226,14 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
             // Invalid OTP codes should still be strings
             expect(typeof input.otpCode).toBe('string')
           }
-          
+
           // These patterns represent the OTP validation behavior 
           // that must be preserved after the registration fix is implemented
         }
       ),
-      { 
+      {
         numRuns: 10,
-        verbose: true 
+        verbose: true
       }
     )
   })
@@ -243,7 +243,7 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
      * This is a concrete test case that demonstrates the exact existing behavior
      * patterns that must be preserved for confirmed users.
      */
-    
+
     const existingUser = {
       email: 'confirmed@example.com',
       password: 'ExistingPass123',
@@ -251,19 +251,19 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
     }
 
     // Test the current behavior patterns that must be preserved
-    
+
     // PATTERN 1: User object structure is maintained
     expect(existingUser).toHaveProperty('email')
     expect(existingUser).toHaveProperty('password')
     expect(existingUser).toHaveProperty('isConfirmed')
-    
+
     // PATTERN 2: Email format is maintained
     expect(existingUser.email).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
-    
+
     // PATTERN 3: Password complexity is maintained
     expect(existingUser.password.length).toBeGreaterThanOrEqual(8)
     expect(existingUser.password).toMatch(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    
+
     // PATTERN 4: Confirmation status is maintained
     expect(existingUser.isConfirmed).toBe(true)
 
@@ -279,20 +279,20 @@ describe('Preservation Property Tests - Existing Authentication Behavior', () =>
      * This is a concrete test case that demonstrates the exact existing behavior
      * patterns that must be preserved for password reset functionality.
      */
-    
+
     const resetRequest = {
       email: 'user@example.com'
     }
 
     // Test the current behavior patterns that must be preserved
-    
+
     // PATTERN 1: Reset request structure is maintained
     expect(resetRequest).toHaveProperty('email')
     expect(typeof resetRequest.email).toBe('string')
-    
+
     // PATTERN 2: Email format validation is maintained
     expect(resetRequest.email).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
-    
+
     // PATTERN 3: Request object structure is maintained
     expect(Object.keys(resetRequest)).toContain('email')
     expect(Object.keys(resetRequest).length).toBe(1)
