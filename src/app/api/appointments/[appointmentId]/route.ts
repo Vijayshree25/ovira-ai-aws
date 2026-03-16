@@ -14,12 +14,12 @@ const APPOINTMENTS_TABLE = process.env.NEXT_PUBLIC_DYNAMODB_APPOINTMENTS_TABLE |
 
 export async function GET(
     request: Request,
-    { params }: { params: { appointmentId: string } }
+    { params }: { params: Promise<{ appointmentId: string }> }
 ) {
     try {
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get('userId');
-        const { appointmentId } = params;
+        const { appointmentId } = await params;
 
         if (!userId || !appointmentId) {
             return NextResponse.json(

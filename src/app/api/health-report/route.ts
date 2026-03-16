@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateHealthReportSummary, sanitizeResponse } from '@/lib/aws/bedrock';
-import { retrieveAndGenerate, retryWithBackoff, type Citation } from '@/lib/aws/bedrock-kb';
+import { generateClinicalInsights, type Citation } from '@/lib/aws/bedrock-kb';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -59,8 +59,6 @@ interface ClinicalStats {
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-
-const CLINICAL_KB_ID = process.env.BEDROCK_CLINICAL_KB_ID || '';
 
 const CLINICAL_SYSTEM_PROMPT = `You are a clinical pattern analysis assistant for Ovira AI.
 You generate structured health reports for users to share with their gynaecologist.
@@ -340,113 +338,96 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // ── Attempt KB-backed clinical report ───────────────────────────────
+        // ── Attempt Local RAG-backed clinical report ─────────────────────────
 
-        if (CLINICAL_KB_ID) {
-            try {
-                console.log('Health Report — Generating via Clinical Knowledge Base');
+        try {
+            console.log('Health Report — Generating via Local Clinical RAG');
 
-                // Build the stats JSON to pass to the KB
-                const statsJson = JSON.stringify(
-                    {
-                        totalLogs: stats.totalLogs,
-                        dateRange: stats.dateRange,
-                        avgPainScore: stats.avgPainScore,
-                        avgSleepHours: stats.avgSleepHours,
-                        heavyFlowDays: stats.heavyFlowDays,
-                        heavyFlowCycles: stats.heavyFlowCycles,
-                        nonPeriodPainDays: stats.nonPeriodPainDays,
-                        lutealMoodScore: stats.lutealMoodScore,
-                        follicularMoodScore: stats.follicularMoodScore,
-                        cycleLengths: stats.cycleLengths,
-                        topSymptoms: stats.topSymptoms,
-                        fatigueDuringPeriod: stats.fatigueDuringPeriod,
-                        userConditions: stats.userConditions,
-                        dietType: userProfile.dietType || 'not specified',
-                        stapleGrain: userProfile.stapleGrain || 'not specified',
-                        ironRichFoodFrequency: userProfile.ironRichFoodFrequency || 'not specified',
-                    },
-                    null,
-                    2,
-                );
+            // Build the stats JSON to pass to the RAG pipeline
+            const statsJson = JSON.stringify(
+                {
+                    totalLogs: stats.totalLogs,
+                    dateRange: stats.dateRange,
+                    avgPainScore: stats.avgPainScore,
+                    avgSleepHours: stats.avgSleepHours,
+                    heavyFlowDays: stats.heavyFlowDays,
+                    heavyFlowCycles: stats.heavyFlowCycles,
+                    nonPeriodPainDays: stats.nonPeriodPainDays,
+                    lutealMoodScore: stats.lutealMoodScore,
+                    follicularMoodScore: stats.follicularMoodScore,
+                    cycleLengths: stats.cycleLengths,
+                    topSymptoms: stats.topSymptoms,
+                    fatigueDuringPeriod: stats.fatigueDuringPeriod,
+                    userConditions: stats.userConditions,
+                    dietType: userProfile.dietType || 'not specified',
+                    stapleGrain: userProfile.stapleGrain || 'not specified',
+                    ironRichFoodFrequency: userProfile.ironRichFoodFrequency || 'not specified',
+                },
+                null,
+                2,
+            );
 
-                const question = `Generate a comprehensive health report for a patient with these menstrual health statistics:\n\n${statsJson}`;
+            const symptomSummary = `Generate a comprehensive health report for a patient with these menstrual health statistics:\n\n${statsJson}`;
 
-                // Inject user health context into the clinical system prompt
-                const clinicalPrompt = userProfile.healthContextSummary
-                    ? `USER HEALTH CONTEXT:\n${userProfile.healthContextSummary}\n\n${CLINICAL_SYSTEM_PROMPT}`
-                    : CLINICAL_SYSTEM_PROMPT;
+            // Call generateClinicalInsights — internally retrieves relevant guideline chunks
+            // and injects them into the Claude prompt (local RAG, no Bedrock KB needed).
+            const { response: answer, citations, modelUsed } = await generateClinicalInsights(
+                symptomSummary,
+                userProfile.healthContextSummary,
+            );
 
-                const { answer, citations, modelUsed } = await retryWithBackoff(() =>
-                    retrieveAndGenerate(
-                        question,
-                        CLINICAL_KB_ID,
-                        clinicalPrompt,
-                        1200, // larger token budget for structured clinical output
-                    ),
-                );
+            // Apply medical safety guardrails
+            const sanitizedAnswer = sanitizeResponse(answer);
 
-                // Apply medical safety guardrails
-                const sanitizedAnswer = sanitizeResponse(answer);
+            // Try to parse JSON from RAG response
+            const jsonMatch = sanitizedAnswer.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                try {
+                    const reportData = JSON.parse(jsonMatch[0]);
 
-                // Try to parse JSON from KB response
-                const jsonMatch = sanitizedAnswer.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    try {
-                        const reportData = JSON.parse(jsonMatch[0]);
-
-                        // Enrich riskFlags with citation-backed clinicalBasis
-                        if (reportData.riskFlags && Array.isArray(reportData.riskFlags)) {
-                            reportData.riskFlags = reportData.riskFlags.map(
-                                (flag: Record<string, unknown>) => ({
-                                    ...flag,
-                                    // Preserve KB-generated clinicalBasis if present
-                                    clinicalBasis:
-                                        flag.clinicalBasis ||
-                                        (citations.length > 0
-                                            ? citations[0].source
-                                            : 'Clinical guidelines'),
-                                }),
-                            );
-                        }
-
-                        // Add metadata
-                        reportData.generatedAt = new Date().toISOString();
-                        reportData.periodStart = logs[logs.length - 1]?.date;
-                        reportData.periodEnd = logs[0]?.date;
-                        reportData.totalLogsAnalyzed = logs.length;
-                        reportData.patientInfo = {
-                            name: userProfile.displayName || 'Patient',
-                            ageRange: userProfile.ageRange,
-                            conditions: userProfile.conditions || [],
-                            averageCycleLength: userProfile.averageCycleLength || 28,
-                        };
-                        reportData.statistics = stats;
-                        reportData.model_used = modelUsed;
-                        reportData.citations = citations;
-                        reportData.ragEnabled = true;
-
-                        // Append citation footer to executive summary
-                        if (reportData.executiveSummary && citations.length > 0) {
-                            reportData.executiveSummary += formatCitationFooter(citations);
-                        }
-
-                        return NextResponse.json(reportData);
-                    } catch (parseError) {
-                        console.warn('Failed to parse KB JSON response, falling back:', parseError);
-                        // Fall through to generateHealthReportSummary fallback
+                    // Enrich riskFlags with citation-backed clinicalBasis
+                    if (reportData.riskFlags && Array.isArray(reportData.riskFlags)) {
+                        reportData.riskFlags = reportData.riskFlags.map(
+                            (flag: Record<string, unknown>) => ({
+                                ...flag,
+                                clinicalBasis:
+                                    flag.clinicalBasis ||
+                                    (citations.length > 0
+                                        ? citations[0].source
+                                        : 'Clinical guidelines'),
+                            }),
+                        );
                     }
-                } else {
-                    console.warn('KB response did not contain JSON, falling back');
+
+                    // Add metadata
+                    reportData.generatedAt = new Date().toISOString();
+                    reportData.periodStart = logs[logs.length - 1]?.date;
+                    reportData.periodEnd = logs[0]?.date;
+                    reportData.totalLogsAnalyzed = logs.length;
+                    reportData.patientInfo = {
+                        name: userProfile.displayName || 'Patient',
+                        ageRange: userProfile.ageRange,
+                        conditions: userProfile.conditions || [],
+                        averageCycleLength: userProfile.averageCycleLength || 28,
+                    };
+                    reportData.statistics = stats;
+                    reportData.model_used = modelUsed;
+                    reportData.citations = citations;
+                    reportData.ragEnabled = true;
+
+                    return NextResponse.json(reportData);
+                } catch (parseError) {
+                    console.warn('Failed to parse RAG JSON response, falling back:', parseError);
+                    // Fall through to generateHealthReportSummary fallback
                 }
-            } catch (kbError) {
-                console.error(
-                    'Clinical KB call failed after retries, falling back to direct Claude:',
-                    kbError,
-                );
+            } else {
+                console.warn('RAG response did not contain JSON, falling back');
             }
-        } else {
-            console.warn('BEDROCK_CLINICAL_KB_ID not set — skipping KB');
+        } catch (ragError) {
+            console.error(
+                'Local RAG clinical call failed, falling back to direct Claude:',
+                ragError,
+            );
         }
 
         // ── Fallback: direct generateHealthReportSummary (no RAG) ───────────

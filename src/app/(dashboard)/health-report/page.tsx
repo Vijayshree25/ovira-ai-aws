@@ -625,7 +625,7 @@ export default function HealthReportPage() {
                                 </div>
                                 <div className="p-4 rounded-xl bg-surface-elevated">
                                     <p className="text-sm text-text-muted mb-1">Cycle Regularity</p>
-                                    <p className="font-medium capitalize">{report.cycleInsights.cycleRegularity.replace('_', ' ')}</p>
+                                    <p className="font-medium capitalize">{(report.cycleInsights.cycleRegularity ?? 'Not assessed').replace(/_/g, ' ')}</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -640,11 +640,11 @@ export default function HealthReportPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            {report.symptomAnalysis.mostFrequentSymptoms.length > 0 && (
+                            {(report.symptomAnalysis.mostFrequentSymptoms ?? []).length > 0 && (
                                 <div className="mb-6">
                                     <p className="text-sm font-medium mb-3">Most Frequent Symptoms</p>
                                     <div className="space-y-2">
-                                        {report.symptomAnalysis.mostFrequentSymptoms.map((item, i) => (
+                                        {(report.symptomAnalysis.mostFrequentSymptoms ?? []).map((item, i) => (
                                             <div key={i} className="flex items-center gap-3">
                                                 <span className="w-24 text-sm truncate">{item.symptom}</span>
                                                 <div className="flex-1 h-6 bg-surface-elevated rounded-full overflow-hidden">
@@ -666,32 +666,32 @@ export default function HealthReportPage() {
                                 <div className="p-4 rounded-xl bg-surface-elevated">
                                     <div className="flex items-center justify-between mb-1">
                                         <p className="text-sm text-text-muted">Pain Trend</p>
-                                        {getTrendIcon(report.symptomAnalysis.painTrend)}
+                                        {getTrendIcon(report.symptomAnalysis.painTrend ?? 'stable')}
                                     </div>
-                                    <p className="font-medium capitalize">{report.symptomAnalysis.painTrend}</p>
+                                    <p className="font-medium capitalize">{report.symptomAnalysis.painTrend ?? 'N/A'}</p>
                                 </div>
                                 <div className="p-4 rounded-xl bg-surface-elevated">
                                     <p className="text-sm text-text-muted mb-1">Sleep Quality</p>
-                                    <p className="font-medium">{report.symptomAnalysis.sleepQuality}</p>
+                                    <p className="font-medium">{report.symptomAnalysis.sleepQuality ?? 'N/A'}</p>
                                 </div>
                             </div>
 
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div className="p-4 rounded-xl bg-surface-elevated">
                                     <p className="text-sm text-text-muted mb-1">Mood Pattern</p>
-                                    <p className="font-medium">{report.symptomAnalysis.moodPattern}</p>
+                                    <p className="font-medium">{report.symptomAnalysis.moodPattern ?? 'N/A'}</p>
                                 </div>
                                 <div className="p-4 rounded-xl bg-surface-elevated">
                                     <p className="text-sm text-text-muted mb-1">Energy Pattern</p>
-                                    <p className="font-medium">{report.symptomAnalysis.energyPattern}</p>
+                                    <p className="font-medium">{report.symptomAnalysis.energyPattern ?? 'N/A'}</p>
                                 </div>
                             </div>
 
-                            {report.symptomAnalysis.notableCorrelations.length > 0 && (
+                            {(report.symptomAnalysis.notableCorrelations ?? []).length > 0 && (
                                 <div className="mt-4 p-4 rounded-xl bg-primary/5 border border-primary/20">
                                     <p className="text-sm font-medium text-primary mb-2">Notable Correlations</p>
                                     <ul className="space-y-1">
-                                        {report.symptomAnalysis.notableCorrelations.map((corr, i) => (
+                                        {(report.symptomAnalysis.notableCorrelations ?? []).map((corr, i) => (
                                             <li key={i} className="text-sm text-text-secondary flex items-start gap-2">
                                                 <span className="text-primary">•</span>
                                                 {corr}
@@ -713,7 +713,7 @@ export default function HealthReportPage() {
                             <CardDescription>Pattern analysis grounded in clinical guidelines</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {report.riskAssessment.length === 0 ? (
+                            {(report.riskAssessment ?? []).length === 0 ? (
                                 <div className="text-center py-6">
                                     <CheckCircle className="w-12 h-12 text-success mx-auto mb-3" />
                                     <p className="font-medium text-success">No Significant Risk Factors Detected</p>
@@ -723,7 +723,7 @@ export default function HealthReportPage() {
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    {report.riskAssessment.map((risk, i) => {
+                                    {(report.riskAssessment ?? []).map((risk, i) => {
                                         const confidenceNum = getConfidenceNumber(risk.confidence);
                                         const riskType = risk.type || risk.condition.toLowerCase().replace(/[^a-z]/g, '');
                                         const clinicalSource =
@@ -790,7 +790,7 @@ export default function HealthReportPage() {
                             </CardHeader>
                             <CardContent>
                                 <ul className="space-y-3">
-                                    {report.recommendations.map((rec, i) => (
+                                    {(report.recommendations ?? []).map((rec, i) => (
                                         <li key={i} className="flex items-start gap-2">
                                             <CheckCircle size={16} className="text-success mt-1 flex-shrink-0" />
                                             <span className="text-sm">{rec}</span>
@@ -823,7 +823,7 @@ export default function HealthReportPage() {
                             </CardHeader>
                             <CardContent>
                                 <ul className="space-y-3">
-                                    {report.questionsForDoctor.map((q, i) => (
+                                    {(report.questionsForDoctor ?? []).map((q, i) => (
                                         <li key={i} className="flex items-start gap-3">
                                             <button
                                                 onClick={() => toggleQuestion(i)}
@@ -864,7 +864,7 @@ export default function HealthReportPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="grid md:grid-cols-2 gap-3">
-                                {report.lifestyleTips.map((tip, i) => (
+                                {(report.lifestyleTips ?? []).map((tip, i) => (
                                     <div key={i} className="p-3 rounded-xl bg-surface-elevated flex items-start gap-2">
                                         <span className="text-primary">💡</span>
                                         <span className="text-sm">{tip}</span>
