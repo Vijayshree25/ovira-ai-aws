@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { chatWithAI, getFallbackResponse, sanitizeResponse } from '@/lib/aws/bedrock';
 import { chatWithKB, type Citation } from '@/lib/aws/bedrock-kb';
 import { chatWithSLM, routeToSLM } from '@/lib/menstllama-client';
+import { withRateLimit } from '@/middleware/rateLimit';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -33,7 +34,7 @@ function ensureConsultationReminder(text: string): string {
 
 // ─── Route Handler ───────────────────────────────────────────────────────────
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     try {
         const { message, history, userContext } = await request.json();
 
@@ -183,3 +184,7 @@ export async function POST(request: NextRequest) {
         });
     }
 }
+
+
+// Export wrapped handler with rate limiting
+export const POST = withRateLimit(handlePost, 'bedrock');

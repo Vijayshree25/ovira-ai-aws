@@ -11,8 +11,8 @@ const client = new DynamoDBClient({
     },
 });
 const docClient = DynamoDBDocumentClient.from(client);
-const APPOINTMENTS_TABLE = process.env.NEXT_PUBLIC_DYNAMODB_APPOINTMENTS_TABLE || 'ovira-appointments';
-const DOCUMENTS_TABLE = process.env.NEXT_PUBLIC_DYNAMODB_DOCUMENTS_TABLE || 'ovira-documents';
+const APPOINTMENTS_TABLE = process.env.DYNAMODB_APPOINTMENTS_TABLE || 'ovira-appointments';
+const DOCUMENTS_TABLE = process.env.DYNAMODB_DOCUMENTS_TABLE || 'ovira-documents';
 
 const sesClient = new SESClient({ region: process.env.AWS_REGION || 'us-east-1' });
 

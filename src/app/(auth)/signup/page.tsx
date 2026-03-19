@@ -129,14 +129,21 @@ export default function SignupPage() {
 
                 // Create user profile in DynamoDB if it doesn't exist
                 try {
-                    const { createUserProfile } = await import('@/lib/aws/dynamodb');
-                    await createUserProfile({
-                        uid: email,
-                        email: email,
-                        displayName: name,
-                        onboardingComplete: false,
-                        createdAt: new Date().toISOString(),
+                    const profileResponse = await fetch('/api/user/profile', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            userId: email,
+                            email: email,
+                            displayName: name,
+                            onboardingComplete: false,
+                        }),
                     });
+                    
+                    const profileData = await profileResponse.json();
+                    if (!profileData.success) {
+                        console.log('Profile creation note:', profileData.message);
+                    }
                 } catch (profileError: any) {
                     // Profile might already exist, that's okay
                     console.log('Profile creation note:', profileError.message);

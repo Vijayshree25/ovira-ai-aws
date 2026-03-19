@@ -10,12 +10,6 @@ import {
     getCognitoErrorMessage,
     CognitoAuthUser,
 } from '@/lib/aws/cognito';
-import {
-    createUserProfile,
-    getUserProfile,
-    updateUserProfile as updateUserProfileDB,
-} from '@/lib/aws/dynamodb';
-import { reinitializeClients } from '@/lib/aws/config';
 import { UserProfile, OnboardingData } from '@/types';
 import { buildHealthContext } from '@/lib/buildHealthContext';
 
@@ -51,37 +45,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setMounted(true);
     }, []);
 
-    // Fetch user profile from DynamoDB
+    // Fetch user profile from API route
     const fetchUserProfile = async (userId: string) => {
         try {
             console.log('Fetching user profile for:', userId);
-            let profile = await getUserProfile(userId);
+            
+            const response = await fetch(`/api/user/profile?userId=${encodeURIComponent(userId)}`);
+            const data = await response.json();
+            
+            let profile = data.success ? data.profile : null;
 
             // If profile doesn't exist, create a basic one
             if (!profile) {
                 console.log('Creating new user profile for:', userId);
-                const newProfile: Partial<UserProfile> = {
-                    id: userId,
+                const newProfile = {
                     uid: userId,
                     email: userId,
                     displayName: userId.split('@')[0],
                     onboardingComplete: false,
-                    createdAt: new Date().toISOString(),
                     averageCycleLength: 28,
                     conditions: [],
                     language: 'en',
                     ageRange: '25-34' as const,
+                    createdAt: new Date().toISOString(),
                 };
 
                 try {
-                    await createUserProfile(newProfile);
-                    console.log('New user profile created successfully');
+                    const createResponse = await fetch('/api/user/profile', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(newProfile),
+                    });
 
-                    // Fetch the newly created profile
-                    profile = await getUserProfile(userId);
+                    const createData = await createResponse.json();
+                    
+                    if (createData.success) {
+                        profile = createData.profile;
+                        console.log('New user profile created successfully');
+                    } else {
+                        console.error('Failed to create user profile:', createData.error);
+                        profile = newProfile as UserProfile;
+                    }
                 } catch (createError) {
                     console.error('Failed to create user profile:', createError);
-                    // Set a basic profile in state even if creation fails
                     profile = newProfile as UserProfile;
                 }
             }
@@ -89,7 +95,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.log('Setting user profile:', profile);
 
             // Compute healthContextSummary for users who completed onboarding
-            // before this feature was added (one-time migration)
             if (
                 profile &&
                 profile.onboardingComplete &&
@@ -98,10 +103,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 try {
                     const healthContextSummary = buildHealthContext(profile);
                     profile.healthContextSummary = healthContextSummary;
-                    // Persist to DynamoDB in background (don't block profile load)
-                    updateUserProfileDB(userId, { healthContextSummary }).catch((err) =>
+                    
+                    // Persist to API in background
+                    fetch('/api/user/profile', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId, updates: { healthContextSummary } }),
+                    }).catch((err) =>
                         console.error('Failed to persist computed healthContextSummary:', err),
                     );
+                    
                     console.log('Computed and saved missing healthContextSummary');
                 } catch (err) {
                     console.error('Error computing healthContextSummary:', err);
@@ -167,8 +178,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                     console.log('Setting user from stored tokens:', authUser);
                     setUser(authUser);
-                    // Reinitialize AWS clients with new credentials
-                    reinitializeClients();
                     await fetchUserProfile(userEmail);
                 } else {
                     console.log('No stored auth data, user is null');
@@ -248,8 +257,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             };
 
             setUser(authUser);
-            // Reinitialize AWS clients with new credentials
-            reinitializeClients();
             await fetchUserProfile(email);
 
             // Return the user object so caller can verify state is set
@@ -354,8 +361,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             healthContextSummary,
         };
 
-        await updateUserProfileDB(user.username, updates);
-        console.log('Profile updated in DynamoDB with health context');
+        const response = await fetch('/api/user/profile', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.username, updates }),
+        });
+
+        const responseData = await response.json();
+        
+        if (!responseData.success) {
+            throw new Error(responseData.message || 'Failed to update profile');
+        }
+
+        console.log('Profile updated via API with health context');
 
         setUserProfile((prev) => {
             const updated = prev ? { ...prev, ...updates } : null;
@@ -364,11 +382,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
     };
 
-    // Update user profile in DynamoDB and local state
+    // Update user profile via API and local state
     const updateProfile = async (updates: Partial<UserProfile>) => {
         if (!user) throw new Error('No user logged in');
 
-        await updateUserProfileDB(user.username, updates);
+        const response = await fetch('/api/user/profile', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.username, updates }),
+        });
+
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.message || 'Failed to update profile');
+        }
+
         setUserProfile((prev) => prev ? { ...prev, ...updates } : null);
     };
 
@@ -403,8 +432,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 console.log('Setting user from tokens:', authUser);
                 setUser(authUser);
-                // Reinitialize AWS clients with new credentials
-                reinitializeClients();
                 await fetchUserProfile(userEmail);
 
                 return authUser;
@@ -435,7 +462,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         setUser(demoUser);
-        reinitializeClients();
         await fetchUserProfile('demo-user-001');
     };
 

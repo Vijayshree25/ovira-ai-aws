@@ -12,7 +12,7 @@ const client = new DynamoDBClient({
     },
 });
 const docClient = DynamoDBDocumentClient.from(client);
-const APPOINTMENTS_TABLE = process.env.NEXT_PUBLIC_DYNAMODB_APPOINTMENTS_TABLE || 'ovira-appointments';
+const APPOINTMENTS_TABLE = process.env.DYNAMODB_APPOINTMENTS_TABLE || 'ovira-appointments';
 
 export async function POST(request: Request) {
     try {

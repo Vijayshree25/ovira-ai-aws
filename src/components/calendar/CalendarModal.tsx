@@ -4,7 +4,6 @@ import { useEffect, useCallback, useState, useMemo } from 'react';
 import { CalendarModalProps, CalendarDataState } from './types';
 import { generateCalendarDates, canNavigateToNextMonth, getMonthKey } from '@/lib/utils/calendar-utils';
 import { getCalendarCache } from '@/lib/utils/calendar-cache';
-import { getSymptomLogsByMonth } from '@/lib/aws/dynamodb';
 import { SymptomLog } from '@/types';
 import CalendarHeader from './CalendarHeader';
 import CalendarGrid from './CalendarGrid';
@@ -56,7 +55,39 @@ export default function CalendarModal({
     setDataState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
       console.log(`Fetching symptom logs for ${monthKey} (${year}-${month + 1})`);
-      const logs = await getSymptomLogsByMonth(userId, year, month);
+      
+      // Call API endpoint instead of direct DynamoDB
+      const response = await fetch(`/api/symptoms?userId=${encodeURIComponent(userId)}&limit=100`);
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to fetch symptom logs');
+      }
+      
+      // Filter logs for the current month
+      const allLogs = data.logs;
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
+      
+      const logs = (allLogs as SymptomLog[]).filter((log: SymptomLog) => {
+        let dateKey: string;
+        if (log.date.includes('T')) {
+          const logDate = new Date(log.date);
+          const year = logDate.getFullYear();
+          const month = String(logDate.getMonth() + 1).padStart(2, '0');
+          const day = String(logDate.getDate()).padStart(2, '0');
+          dateKey = `${year}-${month}-${day}`;
+        } else {
+          dateKey = log.date;
+        }
+        return dateKey >= startDateStr && dateKey <= endDateStr;
+      });
+      
       console.log(`Retrieved ${logs.length} symptom logs for ${monthKey}`);
 
       // Cache the results

@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
         await docClient.send(
             new PutCommand({
-                TableName: process.env.NEXT_PUBLIC_DYNAMODB_USERS_TABLE || 'ovira-users',
+                TableName: process.env.DYNAMODB_USERS_TABLE || 'ovira-users',
                 Item: userProfile,
             })
         );

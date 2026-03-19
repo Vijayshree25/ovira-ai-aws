@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { withRateLimit } from '@/middleware/rateLimit';
 
 const client = new DynamoDBClient({
-  region: process.env.NEXT_PUBLIC_AWS_REGION!,
+  region: process.env.AWS_REGION!,
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
@@ -12,7 +13,7 @@ const client = new DynamoDBClient({
 
 const docClient = DynamoDBDocumentClient.from(client);
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body = await request.json();
     const { userId, date, flowLevel, painLevel, mood, energyLevel, sleepHours, symptoms, notes } = body;
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     const id = `${userId}#${normalizedDate}`;
 
     const command = new PutCommand({
-      TableName: process.env.NEXT_PUBLIC_DYNAMODB_SYMPTOMS_TABLE!,
+      TableName: process.env.DYNAMODB_SYMPTOMS_TABLE!,
       Item: {
         id, // Primary key — deterministic per user+date for upsert
         userId,
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+async function handleGet(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
 
     // Scan all items and filter by userId (no Limit on Scan — Limit restricts items *scanned*, not *returned*)
     const command = new ScanCommand({
-      TableName: process.env.NEXT_PUBLIC_DYNAMODB_SYMPTOMS_TABLE!,
+      TableName: process.env.DYNAMODB_SYMPTOMS_TABLE!,
       FilterExpression: 'userId = :userId',
       ExpressionAttributeValues: {
         ':userId': userId,
@@ -117,3 +118,8 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+
+// Export wrapped handlers with rate limiting
+export const POST = withRateLimit(handlePost, 'dynamodb');
+export const GET = withRateLimit(handleGet, 'dynamodb');

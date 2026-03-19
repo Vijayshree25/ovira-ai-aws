@@ -11,7 +11,7 @@ const client = new DynamoDBClient({
     },
 });
 const docClient = DynamoDBDocumentClient.from(client);
-const DOCTORS_TABLE = process.env.NEXT_PUBLIC_DYNAMODB_DOCTORS_TABLE || 'ovira-doctors';
+const DOCTORS_TABLE = process.env.DYNAMODB_DOCTORS_TABLE || 'ovira-doctors';
 
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);

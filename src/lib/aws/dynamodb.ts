@@ -1,8 +1,40 @@
-'use client';
+// Server-side only - for use in API routes
+// DO NOT import this file in client components
 
 import { PutCommand, GetCommand, QueryCommand, UpdateCommand, DeleteCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
-import { getDocClient, dynamoDBTables } from './config';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { UserProfile, SymptomLog, HealthReport, ChatMessage } from '@/types';
+
+// Server-side DynamoDB client initialization
+function getDocClient() {
+    const client = new DynamoDBClient({
+        region: process.env.AWS_REGION!,
+        credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        },
+    });
+
+    return DynamoDBDocumentClient.from(client, {
+        marshallOptions: {
+            removeUndefinedValues: true,
+            convertClassInstanceToMap: true,
+        },
+    });
+}
+
+// Table names from server-side environment variables
+const dynamoDBTables = {
+    users: process.env.DYNAMODB_USERS_TABLE || 'ovira-users',
+    symptoms: process.env.DYNAMODB_SYMPTOMS_TABLE || 'ovira-symptoms',
+    reports: process.env.DYNAMODB_REPORTS_TABLE || 'ovira-reports',
+    chatHistory: process.env.DYNAMODB_CHAT_TABLE || 'ovira-chat-history',
+    articles: process.env.DYNAMODB_ARTICLES_TABLE || 'ovira-articles',
+    documents: process.env.DYNAMODB_DOCUMENTS_TABLE || 'ovira-documents',
+    doctors: process.env.DYNAMODB_DOCTORS_TABLE || 'ovira-doctors',
+    appointments: process.env.DYNAMODB_APPOINTMENTS_TABLE || 'ovira-appointments',
+};
 
 // User Profile Operations
 export async function createUserProfile(profile: Partial<UserProfile>): Promise<void> {
