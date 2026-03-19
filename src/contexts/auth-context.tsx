@@ -59,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (!profile) {
                 console.log('Creating new user profile for:', userId);
                 const newProfile = {
+                    userId: userId, // Add userId for API route
                     uid: userId,
                     email: userId,
                     displayName: userId.split('@')[0],
