@@ -159,15 +159,8 @@ async function handlePatch(request: NextRequest) {
       expressionAttributeValues[attrValue] = value;
     });
 
-    // Determine key
-    let updateKey;
-    if (existingUser.id) {
-      updateKey = { id: existingUser.id };
-    } else if (existingUser.uid) {
-      updateKey = { uid: existingUser.uid };
-    } else {
-      updateKey = { email: existingUser.email };
-    }
+    // Determine key - the table uses 'id' as primary key
+    const updateKey = { id: existingUser.id || existingUser.uid || existingUser.email };
 
     const updateCommand = new UpdateCommand({
       TableName: TABLE_NAME,
