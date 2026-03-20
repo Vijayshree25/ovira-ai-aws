@@ -54,30 +54,13 @@ export default function LoginPage() {
                 localStorage.setItem('idToken', data.authenticationResult.IdToken);
                 localStorage.setItem('accessToken', data.authenticationResult.AccessToken);
                 localStorage.setItem('refreshToken', data.authenticationResult.RefreshToken);
-
-                // Also store email for session reconstruction
                 localStorage.setItem('userEmail', email);
 
-                // Wait for AuthContext to initialize user state
+                // Refresh user state
                 await refreshUser();
 
-                // Small delay to ensure state is set
-                await new Promise(resolve => setTimeout(resolve, 500));
-
-                // Check if user needs onboarding
-                const storedEmail = localStorage.getItem('userEmail') || email;
-                try {
-                    const profileRes = await fetch(`/api/user/profile?userId=${encodeURIComponent(storedEmail)}`);
-                    const profileData = await profileRes.json();
-                    if (profileData.success && profileData.profile && profileData.profile.onboardingComplete) {
-                        router.push('/dashboard');
-                    } else {
-                        router.push('/onboarding');
-                    }
-                } catch {
-                    // Fallback: let dashboard layout handle the redirect
-                    router.push('/dashboard');
-                }
+                // Let dashboard layout handle onboarding redirect
+                router.push('/dashboard');
             } else {
                 throw new Error('No authentication result or challenge received');
             }
@@ -130,30 +113,16 @@ export default function LoginPage() {
                 localStorage.setItem('refreshToken', data.authenticationResult.RefreshToken);
                 localStorage.setItem('userEmail', email);
 
-                // Wait for AuthContext to initialize user state
+                // Refresh user state
                 await refreshUser();
-
-                // Small delay to ensure state is set
-                await new Promise(resolve => setTimeout(resolve, 500));
 
                 // Clear form data
                 setEmail('');
                 setPassword('');
                 setOtpCode('');
 
-                // Check if user needs onboarding
-                const storedEmail = localStorage.getItem('userEmail') || email;
-                try {
-                    const profileRes = await fetch(`/api/user/profile?userId=${encodeURIComponent(storedEmail)}`);
-                    const profileData = await profileRes.json();
-                    if (profileData.success && profileData.profile && profileData.profile.onboardingComplete) {
-                        router.push('/dashboard');
-                    } else {
-                        router.push('/onboarding');
-                    }
-                } catch {
-                    router.push('/dashboard');
-                }
+                // Let dashboard layout handle onboarding redirect
+                router.push('/dashboard');
             } else {
                 throw new Error('No authentication result received');
             }

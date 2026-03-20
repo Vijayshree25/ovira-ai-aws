@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Write bug condition exploration test
+- [-] 1. Write bug condition exploration test
   - **Property 1: Fault Condition** - Auth State Not Updated After Login
   - **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bug exists
   - **DO NOT attempt to fix the test or the code when it fails**
@@ -32,9 +32,9 @@
   - Mark task complete when tests are written, run, and passing on unfixed code
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
-- [ ] 3. Fix authentication state management bug
+- [-] 3. Fix authentication state management bug
 
-  - [ ] 3.1 Add user state refresh mechanism after login
+  - [x] 3.1 Add user state refresh mechanism after login
     - Modify login page to call AuthContext refresh method after storing tokens
     - Ensure user state is populated before router.push('/dashboard')
     - Add await for state update to complete before redirect
@@ -43,7 +43,7 @@
     - _Preservation: Unauthenticated users still redirected to login, logout still clears state, getCurrentUser still called on mount_
     - _Requirements: 1.1, 1.3, 2.1, 2.3_
 
-  - [ ] 3.2 Add user state initialization in onboarding flow
+  - [x] 3.2 Add user state initialization in onboarding flow
     - Ensure AuthContext checks for stored tokens when onboarding page loads
     - Populate user state from tokens before onboarding form is submitted
     - Add error handling if tokens are invalid during onboarding

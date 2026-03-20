@@ -46,12 +46,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             if (!user) {
                 console.log('No user, redirecting to login');
                 router.push('/login');
-            } else if (userProfile && userProfile.onboardingComplete === false) {
+            } else if (userProfile && userProfile.onboardingComplete === false && pathname !== '/onboarding') {
                 console.log('Onboarding incomplete, redirecting to onboarding');
                 router.push('/onboarding');
             }
         }
-    }, [user, userProfile, loading, router]);
+    }, [user, userProfile, loading, router, pathname]);
 
     if (loading) {
         return (

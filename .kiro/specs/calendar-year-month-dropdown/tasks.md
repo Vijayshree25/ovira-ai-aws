@@ -41,7 +41,7 @@ This implementation adds dropdown navigation to the CalendarModal component, all
     - Add styling for selected month highlighting
     - _Requirements: 3.1, 3.4, 5.1_
   
-  - [-] 3.2 Implement month selection handler
+  - [ ] 3.2 Implement month selection handler
     - Add onClick handler to call onMonthSelect callback
     - Add hover states and accessibility attributes (aria-pressed)
     - _Requirements: 3.2, 5.2_
@@ -74,7 +74,7 @@ This implementation adds dropdown navigation to the CalendarModal component, all
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 6. Update CalendarHeader component
-  - [~] 6.1 Make header clickable and add dropdown toggle
+  - [ ] 6.1 Make header clickable and add dropdown toggle
     - Modify `src/components/calendar/CalendarHeader.tsx`
     - Convert month/year display to button element
     - Add onHeaderClick handler and isDropdownOpen prop
@@ -82,7 +82,7 @@ This implementation adds dropdown navigation to the CalendarModal component, all
     - Add ARIA attributes (aria-expanded, aria-haspopup)
     - _Requirements: 1.1, 1.3, 1.4, 5.4_
   
-  - [~] 6.2 Integrate MonthYearDropdown into CalendarHeader
+  - [ ] 6.2 Integrate MonthYearDropdown into CalendarHeader
     - Import and render MonthYearDropdown component
     - Pass year, month, isOpen, and callback props
     - Add relative positioning to header container for dropdown anchoring
@@ -95,24 +95,24 @@ This implementation adds dropdown navigation to the CalendarModal component, all
     - _Requirements: 1.1, 1.3, 1.4, 5.4_
 
 - [ ] 7. Update CalendarModal component
-  - [~] 7.1 Add dropdown state management
+  - [ ] 7.1 Add dropdown state management
     - Modify `src/components/calendar/CalendarModal.tsx`
     - Add isDropdownOpen state with useState
     - Create handleHeaderClick callback to toggle dropdown
     - Create handleYearChange and handleMonthChange callbacks
     - _Requirements: 1.1, 2.3, 3.2_
   
-  - [~] 7.2 Implement click-outside detection for dropdown
+  - [ ] 7.2 Implement click-outside detection for dropdown
     - Update handleBackdropClick to close dropdown before closing modal
     - Distinguish between dropdown close and modal close
     - _Requirements: 1.2_
   
-  - [~] 7.3 Close dropdown on date selection
+  - [ ] 7.3 Close dropdown on date selection
     - Update handleDateSelect to set isDropdownOpen to false
     - Ensure dropdown closes when user selects a date
     - _Requirements: 4.4_
   
-  - [~] 7.4 Pass new props to CalendarHeader
+  - [ ] 7.4 Pass new props to CalendarHeader
     - Pass isDropdownOpen, onHeaderClick, onYearChange, onMonthChange
     - Ensure arrow navigation updates trigger dropdown updates
     - _Requirements: 1.1, 4.1, 4.2_
@@ -137,7 +137,7 @@ This implementation adds dropdown navigation to the CalendarModal component, all
     - Test arrow navigation while dropdown is open
     - _Requirements: 1.1, 1.2, 1.3, 4.1, 4.2, 4.4_
 
-- [~] 8. Final checkpoint - Ensure all tests pass
+- [ ] 8. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
