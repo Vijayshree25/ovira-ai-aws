@@ -133,11 +133,14 @@ function buildContextOnlyResponse(question: string, context: string): KBResponse
         };
     }
 
-    // Build a structured answer from the top chunks
-    const topChunks = blocks.slice(0, 3).join('\n\n');
+    // Build a natural, summarized response instead of dumping raw chunks
+    const topChunk = blocks[0];
+    const sentences = topChunk.split(/[.!?]+/).filter(s => s.trim().length > 20);
+    const summary = sentences.slice(0, 3).join('. ').trim() + '.';
+    
     const response =
-        `Here's what our women's health knowledge base says about your question:\n\n` +
-        `${topChunks}\n\n` +
+        `Based on our women's health knowledge base: ${summary}\n\n` +
+        `${citations.length > 0 ? formatCitationFooter(citations) + '\n\n' : ''}` +
         `Please consult a healthcare provider for personalised advice.`;
 
     return {
@@ -147,6 +150,17 @@ function buildContextOnlyResponse(question: string, context: string): KBResponse
         modelUsed: 'local-rag-only',
         fallbackUsed: true,
     };
+}
+
+// Helper function to format citations
+function formatCitationFooter(citations: Citation[]): string {
+    if (citations.length === 0) return '';
+    const sourceNames = citations
+        .map((c) => c.source)
+        .filter((s) => s !== 'Unknown source')
+        .filter((s, i, arr) => arr.indexOf(s) === i);
+    if (sourceNames.length === 0) return '';
+    return `📚 Sources: ${sourceNames.join(', ')}`;
 }
 
 // ─── Chatbot RAG ─────────────────────────────────────────────────────────────
