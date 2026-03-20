@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, UpdateCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, UpdateCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { withRateLimit } from '@/middleware/rateLimit';
 
 // Initialize DynamoDB client (server-side only)
@@ -28,20 +28,14 @@ async function handleGet(request: NextRequest) {
       );
     }
 
-    // Use scan to find user by id, uid, or email
-    const command = new ScanCommand({
+    // Use direct get with id as primary key
+    const command = new GetCommand({
       TableName: TABLE_NAME,
-      FilterExpression: 'id = :id OR uid = :uid OR email = :email',
-      ExpressionAttributeValues: {
-        ':id': userId,
-        ':uid': userId,
-        ':email': userId,
-      },
-      Limit: 1,
+      Key: { id: userId },
     });
 
     const response = await docClient.send(command);
-    const profile = response.Items?.[0];
+    const profile = response.Item;
 
     if (!profile) {
       return NextResponse.json(
@@ -117,6 +111,8 @@ async function handlePatch(request: NextRequest) {
     const body = await request.json();
     const { userId, updates } = body;
 
+    console.log('[PATCH /api/user/profile] Request:', { userId, updates });
+
     if (!userId || !updates) {
       return NextResponse.json(
         { success: false, error: 'InvalidRequest', message: 'userId and updates are required' },
@@ -124,20 +120,21 @@ async function handlePatch(request: NextRequest) {
       );
     }
 
-    // First, find the user to get the correct key
-    const scanCommand = new ScanCommand({
+    // Use direct get with id as primary key
+    const getCommand = new GetCommand({
       TableName: TABLE_NAME,
-      FilterExpression: 'id = :id OR uid = :uid OR email = :email',
-      ExpressionAttributeValues: {
-        ':id': userId,
-        ':uid': userId,
-        ':email': userId,
-      },
-      Limit: 1,
+      Key: { id: userId },
     });
 
-    const scanResponse = await docClient.send(scanCommand);
-    const existingUser = scanResponse.Items?.[0];
+    console.log('[PATCH /api/user/profile] Getting user with id:', userId);
+
+    const getResponse = await docClient.send(getCommand);
+    const existingUser = getResponse.Item;
+
+    console.log('[PATCH /api/user/profile] Get result:', {
+      found: !!existingUser,
+      user: existingUser,
+    });
 
     if (!existingUser) {
       return NextResponse.json(
@@ -159,8 +156,8 @@ async function handlePatch(request: NextRequest) {
       expressionAttributeValues[attrValue] = value;
     });
 
-    // Determine key - the table uses 'id' as primary key
-    const updateKey = { id: existingUser.id || existingUser.uid || existingUser.email };
+    // Use id as the primary key (already verified it exists)
+    const updateKey = { id: userId };
 
     const updateCommand = new UpdateCommand({
       TableName: TABLE_NAME,
@@ -190,7 +187,7 @@ async function handlePatch(request: NextRequest) {
   }
 }
 
-// Export wrapped handlers
-export const GET = withRateLimit(handleGet, 'dynamodb');
-export const POST = withRateLimit(handlePost, 'dynamodb');
-export const PATCH = withRateLimit(handlePatch, 'dynamodb');
+// Export handlers without rate limiting for now (debugging)
+export const GET = handleGet;
+export const POST = handlePost;
+export const PATCH = handlePatch;
