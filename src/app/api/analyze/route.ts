@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RiskFlag, SymptomLog } from '@/types';
+import { withRateLimit } from '@/middleware/rateLimit';
 
 interface AnalyzeRequest {
     logs: SymptomLog[];
@@ -13,7 +14,7 @@ interface AnalyzeResponse {
     recommendations: string[];
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     try {
         const { logs, averageCycleLength = 28 }: AnalyzeRequest = await request.json();
 
@@ -125,3 +126,7 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+
+
+// Export wrapped handler with rate limiting
+export const POST = withRateLimit(handlePost, 'bedrock');

@@ -1,0 +1,173 @@
+OVIRA AI — CLINICAL KNOWLEDGE BASE
+Women's Menstrual Health: Clinical Guidelines & Evidence Summary
+================================================================
+IMPORTANT: This document is for AI-assisted clinical decision-support only.
+It does not replace professional clinical judgement.
+
+SECTION 1: MENORRHAGIA — ACOG & WHO CLINICAL STANDARDS
+--------------------------------------------------------
+Source: American College of Obstetricians and Gynaecologists (ACOG) Practice Bulletin No. 128; WHO Guidelines for the Management of Iron Deficiency Anaemia (2023)
+
+Definition (ACOG): Heavy menstrual bleeding (HMB) is defined as menstrual blood loss of 80 mL or more per cycle, or bleeding that lasts more than 7 days, or bleeding that is perceived to interfere with the woman's quality of life.
+
+Clinical thresholds for HMB pattern flagging:
+- ≥5 heavy-flow days in consecutive cycles warrants clinical evaluation.
+- Pictorial Blood Assessment Chart (PBAC) score >100 correlates with objectively heavy blood loss.
+- Haemoglobin <11 g/dL with menorrhagia pattern suggests iron deficiency anaemia (IDA).
+
+Ferritin interpretation (WHO, 2023):
+- <15 µg/L: Iron deficiency
+- <30 µg/L: Probable iron deficiency in symptomatic women
+- 30–100 µg/L: Normal range
+- >100 µg/L: Elevated (possible inflammation or haemochromatosis)
+
+Clinical indicators of menorrhagia risk pattern:
+- ≥5 consecutive heavy-flow days per cycle
+- Fatigue, weakness, pallor, dyspnoea on exertion co-occurring with heavy periods
+- Ferritin below 30 µg/L in context of heavy periods
+- Documented history of passing large clots or changing protection hourly
+
+ACOG guidance: All women with HMB should be evaluated for structural causes (fibroids, polyps — via pelvic ultrasound) and haematological causes (coagulation disorders, thyroid dysfunction). A full blood count and serum ferritin are first-line investigations.
+
+SECTION 2: DYSMENORRHOEA — CLINICAL CLASSIFICATION
+-----------------------------------------------------
+Source: ACOG Practice Bulletin; British Journal of Obstetrics & Gynaecology (BJOG) 2022 dysmenorrhoea review
+
+Primary Dysmenorrhoea: Painful menstruation in the absence of pelvic pathology. Caused by elevated prostaglandin F2α from the endometrium during menstruation, leading to uterine contractions and ischaemia.
+- Typically begins within 1–2 years of menarche.
+- Pain onset: 1–2 days before or at start of menstruation; usually resolves within 72 hours.
+- Associated with nausea, vomiting, diarrhoea, headache.
+
+Secondary Dysmenorrhoea: Painful menstruation due to identifiable pelvic pathology (endometriosis, adenomyosis, fibroids, pelvic inflammatory disease).
+- Often begins after age 25 or with increasingly worsening pain.
+- May be associated with dyspareunia, chronic pelvic pain, or infertility.
+
+VAS Pain Score interpretation for clinical records:
+- 0–3: Mild — minimal impact on function
+- 4–6: Moderate — some interference with daily activities
+- 7–10: Severe — significant functional impairment; warrants urgent evaluation
+
+Clinical decision-support threshold: Reported pain consistently ≥7 on non-menstrual days over ≥2 months is considered an urgent flag for gynaecological evaluation (possible endometriosis or adenomyosis).
+
+SECTION 3: ENDOMETRIOSIS — CLINICAL INDICATORS
+------------------------------------------------
+Source: ACOG Committee Opinion No. 760; European Society of Human Reproduction and Embryology (ESHRE) Endometriosis Guideline 2022
+
+Endometriosis affects an estimated 10% of women of reproductive age globally (WHO, 2023). Average delay from symptom onset to diagnosis is 6–10 years.
+
+Key clinical indicators (decision-support language):
+- Chronic pelvic pain (≥6 months) not adequately explained by other pathology.
+- Severe dysmenorrhoea (VAS ≥7) that does not respond to standard analgesia.
+- Dyspareunia (painful intercourse) — deep dyspareunia especially.
+- Dyschezia: painful defecation during menstruation.
+- Subfertility or infertility with previous ectopic or pelvic adhesions.
+- Non-period pain days ≥5/month with pain ≥6/10 consistently.
+
+ESHRE 2022 guidance: Symptoms alone cannot definitively confirm endometriosis; however, women presenting with ≥3 of the above indicators should be referred for specialist gynaecological evaluation, which may include laparoscopy.
+
+SECTION 4: PMDD — DSM-5 AND RCOG CRITERIA
+-------------------------------------------
+Source: DSM-5 (APA, 2013); Royal College of Obstetricians and Gynaecologists (RCOG) GTG No. 48 — Management of PMS, 2016
+
+Premenstrual Dysphoric Disorder (PMDD) requires:
+- ≥5 symptoms in the final week before menses onset.
+- Improvement within a few days after onset.
+- Minimal or absent in the week post-menses.
+- ≥1 of: marked affective lability, marked irritability/anger, marked depressed mood or hopelessness, marked anxiety or tension.
+- Symptoms cause marked interference with work, school, social activities, or relationships.
+- Not attributable to another mental health disorder.
+
+Clinical decision-support indicators for PMDD pattern:
+- Luteal mood score significantly lower than follicular mood score over ≥2 cycles.
+- Luteal-phase mood score ≤2.0 (out of 5) consistently.
+- Follicular/luteal mood differential ≥1.5 points on standardised scale.
+- Patient-reported significant interference with work or relationships.
+
+RCOG guidance: PMDD is managed with SSRIs (selective serotonin reuptake inhibitors) taken continuously or in the luteal phase, lifestyle modifications (exercise, reduced caffeine/alcohol), and CBT. Referral to a women's mental health service may be appropriate in severe cases.
+
+SECTION 5: IRON DEFICIENCY ANAEMIA — NIH & WHO STANDARDS
+----------------------------------------------------------
+Source: NIH Office of Dietary Supplements — Iron Fact Sheet for Health Professionals; WHO Guideline for Iron Supplementation (2023)
+
+Iron Deficiency Anaemia (IDA) clinical thresholds (WHO, 2023):
+- Haemoglobin <12 g/dL in non-pregnant women of reproductive age = anaemia.
+- Haemoglobin <8 g/dL = severe anaemia requiring urgent evaluation.
+- Ferritin <15 µg/L = iron deficiency (absolute).
+- Ferritin <30 µg/L = likely iron deficiency with concomitant chronic disease or inflammation.
+
+Daily iron requirements (NIH):
+- Women aged 19–50: 18 mg/day elemental iron (higher for vegetarians due to lower haem iron absorption).
+- Pregnant women: 27 mg/day.
+- Post-menopausal women: 8 mg/day.
+
+Foods high in haem iron (absorption ~25%): beef, organ meats (liver, kidney), dark poultry, fish, shellfish.
+
+Foods high in non-haem iron (absorption ~2–20%): fortified cereals, legumes (lentils, chickpeas, kidney beans), tofu, spinach, pumpkin seeds.
+
+Absorption enhancers: Vitamin C (ascorbic acid) consumed simultaneously significantly increases non-haem iron absorption.
+
+Absorption inhibitors: Phytates (found in whole grains, legumes), polyphenols (in tea, coffee, wine), calcium-rich foods — all reduce non-haem iron absorption when consumed at the same time as iron-rich foods.
+
+Clinical pattern indicators suggesting IDA risk in digital health records:
+- ≥5 heavy-flow days with concurrent low energy days ≥3/week.
+- Patient-reported fatigue, pallor, or shortness of breath during or after period.
+- Staple grain diet (rice, wheat) without concurrent vitamin C intake.
+- Vegetarian or vegan diet without iron supplementation tracking.
+
+SECTION 6: PCOS — ROTTERDAM CRITERIA & AE-PCOS STANDARDS
+----------------------------------------------------------
+Source: Rotterdam ESHRE/ASRM-Sponsored PCOS Consensus Workshop Group, 2004; Androgen Excess PCOS Society (AE-PCOS) updated 2022 guidelines; ACOG Practice Bulletin No. 194
+
+PCOS diagnosis requires ≥2 of 3 Rotterdam criteria (requires clinical evaluation):
+1. Oligo- or anovulation (irregular/absent periods).
+2. Clinical or biochemical signs of hyperandrogenism (hirsutism, acne, elevated testosterone).
+3. Polycystic ovaries on ultrasound (≥12 follicles on one ovary, or ovarian volume >10 mL).
+
+AE-PCOS updated position: Hyperandrogenism is considered central to "true" PCOS. Normal androgen levels with polycystic morphology and oligomenorrhoea may represent a distinct phenotype.
+
+Metabolic comorbidities to screen for in PCOS (ACOG, 2018):
+- Insulin resistance and type 2 diabetes: Screen with fasting glucose and 2-hour OGTT.
+- Dyslipidaemia: Fasting lipid panel.
+- Obstructive sleep apnea: high prevalence in PCOS even in normal-weight women.
+- Endometrial hyperplasia risk: women with prolonged anovulation may need endometrial assessment.
+- Psychological health: Depression and anxiety are significantly more prevalent in PCOS; psychological screening recommended.
+
+Decision-support indicators for PCOS pattern from symptom logs:
+- Cycles consistently longer than 35 days or absent (oligomenorrhoea/amenorrhoea).
+- Patient-reported symptoms: excessive hair growth, acne, weight changes.
+- Low energy and mood patterns consistent with insulin resistance.
+- Irregular flow patterns.
+
+SECTION 7: CYCLE TRACKING CLINICAL UTILITY
+-------------------------------------------
+Source: ACOG Committee Opinion No. 651; WHO recommendations on menstrual health
+
+Clinical utility of tracking data:
+- Cycle length variability >7 days is a clinical definition of irregular cycles.
+- Prospective symptom tracking over ≥2 cycles is required for PMDD diagnosis (RCOG).
+- Pain diary data (daily VAS scores) is recommended by ESHRE for assessing endometriosis pre-operatively.
+- Basal body temperature and LH surge detection can assist in confirming ovulation.
+
+Data elements recommended for clinician handover:
+1. Cycle length (days): minimum 3 cycles.
+2. Bleed duration and heaviness score.
+3. Daily pain score (0–10 VAS) per cycle phase.
+4. Mood and energy ratings per day.
+5. Symptom occurrence (nausea, headache, bloating, fatigue, etc.).
+6. Notes on lifestyle factors: sleep, diet, exercise, stress events.
+
+SECTION 8: URGENT CLINICAL FLAGS
+----------------------------------
+Source: ACOG, ESHRE, RCOG guidelines
+
+The following patterns in symptom tracking data suggest urgent clinical referral:
+- Pain VAS ≥8 on non-period days occurring for ≥2 consecutive months.
+- Haemoglobin <8 g/dL or ferritin <15 µg/L confirmed on blood testing.
+- Sudden change in cycle length (>10 days shorter or longer than usual).
+- Intermenstrual bleeding (bleeding between periods) occurring consistently.
+- Postcoital bleeding.
+- Pelvic pain radiating to the back or thigh outside of menstruation.
+- Signs of shock associated with heavy bleeding (dizziness, fainting, pallor).
+- Amenorrhoea >90 days in a previously cycling woman (rule out pregnancy, thyroid dysfunction, hyperprolactinaemia, hypothalamic amenorrhoea).
+
+Note: These flags are for clinical decision-support purposes. Individual assessment by a qualified healthcare professional is required for any clinical determination.

@@ -1,50 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { chatWithAI, getFallbackResponse, sanitizeResponse } from '@/lib/aws/bedrock';
-import { retrieveAndGenerate, type Citation } from '@/lib/aws/bedrock-kb';
-import { retryWithBackoff } from '@/lib/aws/bedrock-kb';
+import { chatWithKB, type Citation } from '@/lib/aws/bedrock-kb';
 import { chatWithSLM, routeToSLM } from '@/lib/menstllama-client';
-
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-const CHATBOT_KB_ID = process.env.BEDROCK_CHATBOT_KB_ID || '';
-
-const CHATBOT_SYSTEM_PROMPT = `You are Aria, an empathetic women's health companion for Ovira AI.
-You help users understand their menstrual health using trusted health information.
-
-STRICT RULES — never break these:
-1. NEVER use these words: diagnose, diagnosis, treatment, cure, prescribe, disease,
-   disorder, illness, medication, medicine, drug, prescription
-2. ALWAYS end with: "Please consult a healthcare provider for personalised advice."
-3. Use warm, supportive, non-medical language
-4. When citing sources, say "According to the Office on Women's Health..." or
-   "The WHO explains that..."
-5. Keep answers to 2–3 paragraphs maximum
-6. If the question is outside women's menstrual health, politely redirect
-
-The search results from our trusted health library are below:
-$search_results$`;
+import { withRateLimit } from '@/middleware/rateLimit';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/**
- * Build a context-enriched question by prepending the last 3 conversation
- * history messages so the KB model has conversational context.
- */
-function buildContextualQuestion(
-    userMessage: string,
-    history?: Array<{ role: string; content: string }>,
-): string {
-    if (!history || history.length === 0) {
-        return userMessage;
-    }
-
-    const recentContext = history
-        .slice(-3)
-        .map((m) => `${m.role}: ${m.content}`)
-        .join('\n');
-
-    return `${recentContext}\n\nUser: ${userMessage}`;
-}
 
 /**
  * Format citation sources into a readable footer string.
@@ -55,16 +15,7 @@ function formatCitationFooter(citations: Citation[]): string {
     const sourceNames = citations
         .map((c) => c.source)
         .filter((s) => s !== 'Unknown source')
-        // Deduplicate
-        .filter((s, i, arr) => arr.indexOf(s) === i)
-        // Extract readable name from S3 URIs or use as-is
-        .map((s) => {
-            if (s.startsWith('s3://')) {
-                const filename = s.split('/').pop() || s;
-                return filename.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-            }
-            return s;
-        });
+        .filter((s, i, arr) => arr.indexOf(s) === i);
 
     if (sourceNames.length === 0) return '';
 
@@ -83,7 +34,7 @@ function ensureConsultationReminder(text: string): string {
 
 // ─── Route Handler ───────────────────────────────────────────────────────────
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
     try {
         const { message, history, userContext } = await request.json();
 
@@ -163,48 +114,32 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // ── Step 4: Attempt KB-backed RAG response (Bedrock) ───────────────
+        // ── Step 4: Local RAG-backed response (Manual RAG via bedrock-kb) ──
 
-        if (CHATBOT_KB_ID) {
-            try {
-                const contextualQuestion = buildContextualQuestion(message, history);
+        try {
+            const kbResult = await chatWithKB(
+                message,
+                conversationHistory,
+                contextString || undefined,
+            );
 
-                // Inject user health context into the system prompt for the KB call
-                const kbSystemPrompt = contextString
-                    ? `USER HEALTH CONTEXT:\n${contextString}\n\n${CHATBOT_SYSTEM_PROMPT}`
-                    : CHATBOT_SYSTEM_PROMPT;
+            // Apply medical safety guardrails
+            const sanitizedAnswer = sanitizeResponse(kbResult.response);
+            const finalMessage = ensureConsultationReminder(sanitizedAnswer);
 
-                const { answer, citations, modelUsed } = await retryWithBackoff(() =>
-                    retrieveAndGenerate(
-                        contextualQuestion,
-                        CHATBOT_KB_ID,
-                        kbSystemPrompt,
-                    ),
-                );
-
-                // Apply medical safety guardrails
-                const sanitizedAnswer = sanitizeResponse(answer);
-
-                // Append citation footer if sources exist
-                const citationFooter = formatCitationFooter(citations);
-                const finalMessage = ensureConsultationReminder(sanitizedAnswer) + citationFooter;
-
-                return NextResponse.json({
-                    message: finalMessage,
-                    citations,
-                    model: modelUsed,
-                    ragEnabled: true,
-                    slmUsed: false,
-                });
-            } catch (kbError) {
-                console.error(
-                    'KB call failed after retries, falling back to direct Claude:',
-                    kbError,
-                );
-                // Fall through to chatWithAI fallback below
-            }
-        } else {
-            console.warn('BEDROCK_CHATBOT_KB_ID not set — skipping KB, using direct Claude');
+            return NextResponse.json({
+                message: finalMessage,
+                citations: kbResult.citations,
+                model: kbResult.modelUsed,
+                ragEnabled: !kbResult.fallbackUsed,
+                slmUsed: false,
+            });
+        } catch (ragError) {
+            console.error(
+                'Local RAG call failed, falling back to direct Claude:',
+                ragError,
+            );
+            // Fall through to chatWithAI fallback below
         }
 
         // ── Step 5: Fallback — direct chatWithAI (no RAG) ──────────────────
@@ -249,3 +184,7 @@ export async function POST(request: NextRequest) {
         });
     }
 }
+
+
+// Export wrapped handler with rate limiting
+export const POST = withRateLimit(handlePost, 'bedrock');

@@ -13,7 +13,7 @@ const dynamoClient = new DynamoDBClient({
     },
 });
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
-const DOCUMENTS_TABLE = process.env.NEXT_PUBLIC_DYNAMODB_DOCUMENTS_TABLE || 'ovira-documents';
+const DOCUMENTS_TABLE = process.env.DYNAMODB_DOCUMENTS_TABLE || 'ovira-documents';
 
 const s3Client = new S3Client({
     region: process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1',

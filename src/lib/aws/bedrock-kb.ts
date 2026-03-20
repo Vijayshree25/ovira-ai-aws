@@ -1,19 +1,17 @@
 /**
- * Amazon Bedrock Knowledge Base Client for Ovira AI
+ * Manual RAG Client for Ovira AI
  *
- * Provides RAG-powered answers from two Bedrock Knowledge Bases:
- *   KB #1 (Chatbot) — empathetic user chat
- *   KB #2 (Clinical) — doctor-ready health reports
+ * Retrieves relevant knowledge chunks locally (TF-IDF vector store) and
+ * injects them into Claude 3 Haiku prompts.
  *
- * Uses BedrockAgentRuntimeClient (NOT BedrockRuntimeClient).
- * Falls back to plain invokeClaude() without RAG on failure.
+ * Fallback chain (most to least capable):
+ *   1. Claude via Bedrock  +  RAG context   (best)
+ *   2. RAG context only — formatted directly from chunks  (works without Bedrock)
+ *   3. Static safety message  (only if knowledge store also fails)
  */
 
-import {
-    BedrockAgentRuntimeClient,
-    RetrieveAndGenerateCommand,
-    type RetrieveAndGenerateCommandOutput,
-} from '@aws-sdk/client-bedrock-agent-runtime';
+import { invokeClaude } from './bedrock';
+import { retrieveContext } from '@/lib/rag/ragPipeline';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -37,332 +35,239 @@ export interface KBConfig {
     region: string;
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+// ─── Retry utility ───────────────────────────────────────────────────────────
 
-const KB_REGION = 'us-east-1';
-
-const PRIMARY_MODEL_ARN =
-    `arn:aws:bedrock:${KB_REGION}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0`;
-
-const FALLBACK_MODEL_ARN =
-    `arn:aws:bedrock:${KB_REGION}::foundation-model/amazon.nova-micro-v1:0`;
-
-const CHATBOT_KB_ID = process.env.BEDROCK_CHATBOT_KB_ID || '';
-const CLINICAL_KB_ID = process.env.BEDROCK_CLINICAL_KB_ID || '';
-
-// ─── Client (singleton) ─────────────────────────────────────────────────────
-
-let agentClient: BedrockAgentRuntimeClient | undefined;
-
-function getAgentClient(): BedrockAgentRuntimeClient {
-    if (!agentClient) {
-        agentClient = new BedrockAgentRuntimeClient({
-            region: KB_REGION,
-            credentials: {
-                accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-                secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-            },
-        });
-    }
-    return agentClient;
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Generic retry wrapper with exponential backoff.
- * Attempts: 3, delays: 1 000 ms → 2 000 ms → 4 000 ms.
- */
 export async function retryWithBackoff<T>(
     fn: () => Promise<T>,
     maxAttempts: number = 3,
 ): Promise<T> {
     let lastError: unknown;
-
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-            console.log(
-                `[${new Date().toISOString()}] KB attempt ${attempt}/${maxAttempts}`,
-            );
             return await fn();
         } catch (error: any) {
             lastError = error;
-            console.error(
-                `[${new Date().toISOString()}] KB attempt ${attempt} failed:`,
-                error?.name || error?.message,
-            );
-
             if (attempt < maxAttempts) {
-                const backoffMs = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
-                console.log(
-                    `[${new Date().toISOString()}] Waiting ${backoffMs}ms before retry…`,
-                );
-                await sleep(backoffMs);
+                await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt - 1) * 1000));
             }
         }
     }
-
     throw lastError;
 }
 
-// ─── Core: Retrieve & Generate ──────────────────────────────────────────────
+// ─── System Prompts ──────────────────────────────────────────────────────────
+
+const CHATBOT_SYSTEM_PROMPT = `You are Aria, an empathetic women's health companion for Ovira AI.
+You help users understand their menstrual health using trusted health information.
+
+STRICT RULES — never break these:
+1. NEVER use these words: diagnose, diagnosis, treatment, cure, prescribe, disease,
+   disorder, illness, medication, medicine, drug, prescription
+2. ALWAYS end with: "Please consult a healthcare provider for personalised advice."
+3. Use warm, supportive, non-medical language
+4. When citing sources, say "According to the knowledge base..." or
+   "Based on clinical references..."
+5. Keep answers to 2–3 paragraphs maximum
+6. If the question is outside women's menstrual health, politely redirect`;
+
+const CLINICAL_SYSTEM_PROMPT = `You are a clinical pattern analysis assistant for Ovira AI.
+You generate structured health reports for users to share with their gynaecologist.
+
+CRITICAL RULES:
+1. ALWAYS use decision-support language: "pattern consistent with", "may warrant
+   evaluation for", "your doctor may consider", "suggests discussion about"
+2. NEVER say: diagnose, you have [condition], you are at risk, you should take [drug],
+   prescribe, medication, cure, disease
+3. Cite clinical references: "Based on ACOG CPG No. 7 (2023)...", "Per WHO (2024)...",
+   "According to NIH iron deficiency guidelines..."
+4. Structure output as valid JSON with these exact keys:
+   executiveSummary, cycleInsights, symptomAnalysis, riskFlags,
+   recommendations, questionsForDoctor, lifestyleTips, urgentFlags
+5. urgentFlags is only populated if pain >8/10 on non-period days for >2 months
+6. riskFlags must include: type, severity (low/medium/high), confidence (0-100),
+   clinicalBasis (the guideline cited), indicators (string[]), recommendation`;
+
+// ─── Citation helpers ─────────────────────────────────────────────────────────
+
+function buildCitations(context: string): Citation[] {
+    if (!context) return [];
+    const citations: Citation[] = [];
+    const blockRegex = /\[(\d+)\] \(Source: ([^,]+),\s*similarity: ([\d.]+)\)\n([\s\S]*?)(?=\n---|$)/g;
+    let match: RegExpExecArray | null;
+    while ((match = blockRegex.exec(context)) !== null) {
+        const source = match[2].trim().replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        const excerpt = match[4]?.trim().slice(0, 200) ?? '';
+        citations.push({ source, excerpt });
+    }
+    return citations;
+}
+
+// ─── Context-only fallback ────────────────────────────────────────────────────
 
 /**
- * Calls Bedrock RetrieveAndGenerate against a specific Knowledge Base.
- *
- * @param question    - The user's question / input text
- * @param kbId        - Knowledge Base ID to query
- * @param systemPrompt - System prompt prepended to search results
- * @param maxTokens   - Max tokens for the generation (default 800)
- * @returns answer text, parsed citations array, and model identifier
+ * When Claude is unavailable, format the retrieved knowledge chunks into a
+ * readable response. This gives users useful, knowledge-backed answers
+ * even without the LLM layer.
  */
-export async function retrieveAndGenerate(
-    question: string,
-    kbId: string,
-    systemPrompt: string,
-    maxTokens: number = 800,
-): Promise<{ answer: string; citations: Citation[]; modelUsed: string }> {
-    const client = getAgentClient();
+function buildContextOnlyResponse(question: string, context: string): KBResponse {
+    const citations = buildCitations(context);
 
-    const command = new RetrieveAndGenerateCommand({
-        input: { text: question },
-        retrieveAndGenerateConfiguration: {
-            type: 'KNOWLEDGE_BASE',
-            knowledgeBaseConfiguration: {
-                knowledgeBaseId: kbId,
-                modelArn: PRIMARY_MODEL_ARN,
-                generationConfiguration: {
-                    promptTemplate: {
-                        textPromptTemplate: systemPrompt + '\n\n$search_results$',
-                    },
-                    inferenceConfig: {
-                        textInferenceConfig: {
-                            maxTokens,
-                            temperature: 0.3,
-                        },
-                    },
-                },
-            },
-        },
-    });
+    // Extract the text body from each numbered block (strip the header line)
+    const blocks = context
+        .split(/\n---\n/)
+        .map(block => {
+            const newlineIdx = block.indexOf('\n');
+            return newlineIdx >= 0 ? block.slice(newlineIdx + 1).trim() : block.trim();
+        })
+        .filter(Boolean);
 
-    const response = await client.send(command);
+    if (blocks.length === 0) {
+        return {
+            response:
+                'I wasn\'t able to find specific information about that in our knowledge base. ' +
+                'Please consult a healthcare provider for personalised advice.',
+            citations: [],
+            sourceKB: 'chatbot',
+            modelUsed: 'local-rag-only',
+            fallbackUsed: true,
+        };
+    }
 
-    const answer = response.output?.text || '';
-    const citations = extractCitations(response);
+    // Build a natural, summarized response instead of dumping raw chunks
+    const topChunk = blocks[0];
+    const sentences = topChunk.split(/[.!?]+/).filter(s => s.trim().length > 20);
+    const summary = sentences.slice(0, 3).join('. ').trim() + '.';
+    
+    const response =
+        `Based on our women's health knowledge base: ${summary}\n\n` +
+        `${citations.length > 0 ? formatCitationFooter(citations) + '\n\n' : ''}` +
+        `Please consult a healthcare provider for personalised advice.`;
 
     return {
-        answer,
+        response,
         citations,
-        modelUsed: 'claude-3-haiku (KB RAG)',
+        sourceKB: 'chatbot',
+        modelUsed: 'local-rag-only',
+        fallbackUsed: true,
     };
 }
 
-// ─── Citation Extraction ────────────────────────────────────────────────────
-
-/**
- * Parses the citations array from a RetrieveAndGenerate response into a
- * clean Citation[] with source name, excerpt, and optional URL.
- */
-export function extractCitations(
-    response: RetrieveAndGenerateCommandOutput,
-): Citation[] {
-    if (!response.citations || response.citations.length === 0) {
-        return [];
-    }
-
-    const parsed: Citation[] = [];
-
-    for (const citation of response.citations) {
-        const refs = citation.retrievedReferences || [];
-        for (const ref of refs) {
-            const source =
-                ref.location?.s3Location?.uri ||
-                ref.location?.webLocation?.url ||
-                'Unknown source';
-
-            const excerpt =
-                ref.content?.text || '';
-
-            const url =
-                ref.location?.webLocation?.url ||
-                ref.location?.s3Location?.uri ||
-                undefined;
-
-            parsed.push({ source, excerpt, url });
-        }
-    }
-
-    return parsed;
+// Helper function to format citations
+function formatCitationFooter(citations: Citation[]): string {
+    if (citations.length === 0) return '';
+    const sourceNames = citations
+        .map((c) => c.source)
+        .filter((s) => s !== 'Unknown source')
+        .filter((s, i, arr) => arr.indexOf(s) === i);
+    if (sourceNames.length === 0) return '';
+    return `📚 Sources: ${sourceNames.join(', ')}`;
 }
 
-// ─── Fallback to plain invokeClaude (dynamic import) ────────────────────────
+// ─── Chatbot RAG ─────────────────────────────────────────────────────────────
 
-/**
- * Dynamically imports invokeClaude from bedrock.ts so there is no static
- * dependency between the two modules.
- */
-async function fallbackInvokeClaude(
-    prompt: string,
-    systemPrompt?: string,
-    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
-): Promise<string> {
-    const { invokeClaude } = await import('./bedrock');
-    return invokeClaude(prompt, systemPrompt, conversationHistory);
-}
-
-// ─── Chatbot KB ─────────────────────────────────────────────────────────────
-
-const CHATBOT_SYSTEM_PROMPT = `You are Ovira AI, a compassionate and empathetic women's health assistant.
-Use the knowledge base search results below to provide accurate, supportive answers.
-Speak in plain, accessible language. Never diagnose or prescribe treatment.
-Always encourage consulting a healthcare professional for personalised advice.
-Keep answers concise (2-3 paragraphs).`;
-
-/**
- * Chat with the Chatbot Knowledge Base — plain-language answers for users.
- *
- * @param question            - The user's message
- * @param conversationHistory - Prior messages for context (used only in fallback)
- */
 export async function chatWithKB(
     question: string,
     conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [],
     userContext?: string,
 ): Promise<KBResponse> {
-    if (!CHATBOT_KB_ID) {
-        console.warn('BEDROCK_CHATBOT_KB_ID is not set — falling back to plain Claude');
-        return chatFallback(question, conversationHistory, userContext);
+    // ── Step 1: Retrieve context from local vector store ──────────────────────
+    let context = '';
+    try {
+        context = await retrieveContext(question, 'chatbot', 5);
+    } catch (ragError: any) {
+        console.error('[chatWithKB] RAG retrieval failed:', ragError?.message);
+        // Continue — will try Claude without context, then give static fallback
     }
 
+    // ── Step 2: Try Claude with context injected ──────────────────────────────
     try {
-        // Prepend user health context to system prompt when available
-        const prompt = userContext
-            ? `USER HEALTH CONTEXT:\n${userContext}\n\n${CHATBOT_SYSTEM_PROMPT}`
-            : CHATBOT_SYSTEM_PROMPT;
+        const systemPrompt = [
+            userContext ? `USER HEALTH CONTEXT:\n${userContext}\n` : '',
+            CHATBOT_SYSTEM_PROMPT,
+            context ? `\n\n${context}` : '',
+        ].filter(Boolean).join('\n');
 
-        const { answer, citations, modelUsed } = await retryWithBackoff(() =>
-            retrieveAndGenerate(question, CHATBOT_KB_ID, prompt),
-        );
+        const answer = await invokeClaude(question, systemPrompt, conversationHistory);
+        const citations = buildCitations(context);
 
         return {
             response: answer,
             citations,
             sourceKB: 'chatbot',
-            modelUsed,
+            modelUsed: 'claude-3-haiku (local RAG)',
             fallbackUsed: false,
         };
-    } catch (error) {
-        console.error('chatWithKB: KB call failed after retries, using plain Claude fallback', error);
-        return chatFallback(question, conversationHistory, userContext);
+    } catch (claudeError: any) {
+        console.error('[chatWithKB] Claude invocation failed:', claudeError?.name, claudeError?.message);
+        console.error('  → HTTP Status:', claudeError?.$metadata?.httpStatusCode);
+        console.error('  → Tip: Enable model access in AWS Bedrock console, or check IAM permissions for bedrock:InvokeModel');
     }
+
+    // ── Step 3: Claude unavailable — return knowledge chunks directly ─────────
+    if (context) {
+        console.log('[chatWithKB] Claude unavailable — returning context-only RAG response');
+        return buildContextOnlyResponse(question, context);
+    }
+
+    // ── Step 4: Nothing available — static safety message ────────────────────
+    return {
+        response:
+            'I wasn\'t able to retrieve information for that question right now. ' +
+            'Please consult a healthcare provider for personalised advice.',
+        citations: [],
+        sourceKB: 'chatbot',
+        modelUsed: 'static-fallback',
+        fallbackUsed: true,
+    };
 }
 
-async function chatFallback(
-    question: string,
-    conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
-    userContext?: string,
-): Promise<KBResponse> {
-    try {
-        const prompt = userContext
-            ? `USER HEALTH CONTEXT:\n${userContext}\n\n${CHATBOT_SYSTEM_PROMPT}`
-            : CHATBOT_SYSTEM_PROMPT;
+// ─── Clinical RAG ─────────────────────────────────────────────────────────────
 
-        const text = await fallbackInvokeClaude(
-            question,
-            prompt,
-            conversationHistory,
-        );
-
-        return {
-            response: text,
-            citations: [],
-            sourceKB: 'chatbot',
-            modelUsed: 'claude-3-haiku (plain, no RAG)',
-            fallbackUsed: true,
-        };
-    } catch (fallbackError) {
-        console.error('chatWithKB: plain Claude fallback also failed', fallbackError);
-        return {
-            response:
-                "I'm sorry, I'm having trouble connecting right now. Please try again in a moment, or consult a healthcare provider for immediate assistance.",
-            citations: [],
-            sourceKB: 'chatbot',
-            modelUsed: 'static-fallback',
-            fallbackUsed: true,
-        };
-    }
-}
-
-// ─── Clinical KB ────────────────────────────────────────────────────────────
-
-const CLINICAL_SYSTEM_PROMPT = `You are a medical data analyst AI generating structured, doctor-ready health reports.
-Use the knowledge base search results below to produce evidence-backed clinical insights.
-
-RULES:
-1. Provide ONLY non-diagnostic statistical analysis and pattern observations.
-2. Use decision-support language — NEVER diagnostic language.
-3. Structure your output with clear sections: Summary, Key Observations, Risk Indicators, Recommendations.
-4. Cite knowledge-base sources where possible.
-5. Encourage professional medical consultation.`;
-
-/**
- * Generate clinical insights from the Clinical Knowledge Base.
- * Produces structured, doctor-ready output based on a symptom summary.
- *
- * @param symptomSummary - Aggregated symptom data / context string
- */
 export async function generateClinicalInsights(
     symptomSummary: string,
     userContext?: string,
 ): Promise<KBResponse> {
-    if (!CLINICAL_KB_ID) {
-        console.warn('BEDROCK_CLINICAL_KB_ID is not set — falling back to plain Claude');
-        return clinicalFallback(symptomSummary, userContext);
+    let context = '';
+    try {
+        context = await retrieveContext(symptomSummary, 'clinical', 6);
+    } catch (ragError: any) {
+        console.error('[generateClinicalInsights] RAG retrieval failed:', ragError?.message);
     }
 
     try {
-        // Prepend user health context to clinical system prompt when available
-        const prompt = userContext
-            ? `USER HEALTH CONTEXT:\n${userContext}\n\n${CLINICAL_SYSTEM_PROMPT}`
-            : CLINICAL_SYSTEM_PROMPT;
+        const systemPrompt = [
+            userContext ? `USER HEALTH CONTEXT:\n${userContext}\n` : '',
+            CLINICAL_SYSTEM_PROMPT,
+            context ? `\n\n${context}` : '',
+        ].filter(Boolean).join('\n');
 
-        const { answer, citations, modelUsed } = await retryWithBackoff(() =>
-            retrieveAndGenerate(
-                symptomSummary,
-                CLINICAL_KB_ID,
-                prompt,
-                1200, // larger token budget for structured clinical output
-            ),
-        );
+        const answer = await invokeClaude(symptomSummary, systemPrompt);
+        const citations = buildCitations(context);
 
         return {
             response: answer,
             citations,
             sourceKB: 'clinical',
-            modelUsed,
+            modelUsed: 'claude-3-haiku (local RAG)',
             fallbackUsed: false,
         };
-    } catch (error) {
-        console.error(
-            'generateClinicalInsights: KB call failed after retries, using plain Claude fallback',
-            error,
-        );
+    } catch (error: any) {
+        console.error('[generateClinicalInsights] Claude failed:', error?.name, error?.message);
+        console.error('  → HTTP Status:', error?.$metadata?.httpStatusCode);
         return clinicalFallback(symptomSummary, userContext);
     }
 }
 
-async function clinicalFallback(symptomSummary: string, userContext?: string): Promise<KBResponse> {
+async function clinicalFallback(
+    symptomSummary: string,
+    userContext?: string,
+): Promise<KBResponse> {
     try {
         const prompt = userContext
             ? `USER HEALTH CONTEXT:\n${userContext}\n\n${CLINICAL_SYSTEM_PROMPT}`
             : CLINICAL_SYSTEM_PROMPT;
 
-        const text = await fallbackInvokeClaude(symptomSummary, prompt);
+        const text = await invokeClaude(symptomSummary, prompt);
 
         return {
             response: text,
@@ -371,11 +276,8 @@ async function clinicalFallback(symptomSummary: string, userContext?: string): P
             modelUsed: 'claude-3-haiku (plain, no RAG)',
             fallbackUsed: true,
         };
-    } catch (fallbackError) {
-        console.error(
-            'generateClinicalInsights: plain Claude fallback also failed',
-            fallbackError,
-        );
+    } catch (fallbackError: any) {
+        console.error('[generateClinicalInsights] plain Claude fallback also failed', fallbackError?.message);
         return {
             response:
                 'Unable to generate clinical insights at this time. Please retry later or consult your healthcare provider directly.',

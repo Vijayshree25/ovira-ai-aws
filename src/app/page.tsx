@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Logo } from '@/components/ui/Logo';
 import {
   Heart,
   Shield,
@@ -75,11 +76,8 @@ export default function HomePage() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <span className="text-white font-bold">O</span>
-            </div>
-            <span className="text-xl font-bold gradient-text">Ovira AI</span>
+          <Link href="/" className="flex items-center">
+            <Logo variant="horizontal" size={48} />
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/login">
@@ -225,11 +223,8 @@ export default function HomePage() {
       <footer className="py-12 px-4 border-t border-border">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <span className="text-white font-bold text-sm">O</span>
-              </div>
-              <span className="font-semibold">Ovira AI</span>
+            <div className="flex items-center">
+              <Logo variant="horizontal" size={24} />
             </div>
             <p className="text-sm text-text-muted text-center">
               Not a substitute for professional medical advice. Always consult a healthcare provider.

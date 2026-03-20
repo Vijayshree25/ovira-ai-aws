@@ -2,123 +2,189 @@
 
 <div align="center">
 
-**AI-powered women's health companion for symptom tracking, pattern analysis, and decision-support insights using AWS services.**
+<img src="https://img.shields.io/badge/Ovira_AI-Women's_Health_Intelligence-7C3AED?style=for-the-badge&logo=heart&logoColor=white" alt="Ovira AI"/>
 
-[AWS Setup Guide](./AWS_SETUP_GUIDE.md) • [Migration Plan](./AWS_MIGRATION_PLAN.md) • [Documentation](#features)
+# 🩷 Ovira AI
+### Women's Health Intelligence Platform — Built for India
+
+*Not a period tracker. A health companion that actually understands you.*
+
+[![Next.js](https://img.shields.io/badge/Next.js_15-000000?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![AWS Bedrock](https://img.shields.io/badge/Amazon_Bedrock-FF9900?style=flat-square&logo=amazonaws&logoColor=white)](https://aws.amazon.com/bedrock/)
+[![DynamoDB](https://img.shields.io/badge/DynamoDB-4053D6?style=flat-square&logo=amazondynamodb&logoColor=white)](https://aws.amazon.com/dynamodb/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+
+**🏆 Built for AI for Bharat Hackathon 2025 — Powered by AWS**
+
+[🚀 Live Demo](#) · [📹 Demo Video](#) · [📋 Docs](#architecture) · [🩷 Try as Priya](#demo-account)
 
 </div>
 
 ---
 
-## ✨ Features
+## 🌟 What is Ovira AI?
 
-### 🗓️ Smart Period Tracking
-- Cycle day indicator with phase visualization
-- Next period prediction based on cycle history
-- Customizable average cycle length
+Ovira AI is an **Indian-first women's health intelligence platform** that transforms daily symptom logs into personalised, doctor-ready health summaries — powered by a hybrid AI system built specifically for Indian women's health.
 
-### 📝 Symptom Logging
-- Flow level tracking (none, light, medium, heavy)
-- Pain scale (0-10) with visual slider
-- Mood tracking with emoji icons
-- Energy level monitoring
-- Sleep hours logging
-- Additional symptom checkboxes
-- Optional notes
+> *180 million Indian women track their health on WhatsApp. Not a health app. WhatsApp.*
+> *Ovira exists to change that.*
 
-### 🤖 AI Health Companion (AWS Bedrock)
-- Amazon Bedrock-powered chat assistant (Claude 3 Haiku)
-- Empathetic, stigma-free responses
-- Educational health information (non-diagnostic)
-- Decision-support only - encourages professional consultation
-- Medical safety guardrails
-- Suggested starter questions
+**The core problem we solve:**
+- 🩺 Women spend entire doctor appointments *explaining* their history instead of *getting help*
+- 🍚 No health app understands Indian diet context — rice vs roti, jaggery, dal, iron absorption
+- 🔬 Generic LLMs give generic advice — no app was trained on Indian menstrual health data
+- ❌ Every app either tracks periods OR talks to AI — nothing connects tracking → AI → doctor
 
-### 📊 Health Reports
-- Pattern analysis across logged data
-- Non-diagnostic statistical indicators
-- Personalized recommendations
-- Export-ready for doctor visits
-- Stored securely in Amazon S3
-
-### 🔒 Privacy & Security
-- AWS Cognito Authentication (Email/Password)
-- Encrypted data storage in DynamoDB
-- End-to-end encryption (TLS 1.3)
-- Data encryption at rest (KMS)
-- User-only data access via IAM policies
-- Data export and account deletion
+**Ovira connects all three.**
 
 ---
 
-## 🚀 Getting Started
+## ✨ Key Features
 
-### Prerequisites
+| Feature | Description |
+|---|---|
+| 📋 **Rich Onboarding** | Captures 3-month history, Indian diet (rice/roti), conditions, cycle data on Day 1 |
+| 🤖 **Hybrid AI Routing** | Domain queries → MenstLLaMA (SLM), General queries → Amazon Bedrock |
+| 🧬 **MenstLLaMA on EC2** | Fine-tuned SLM on 23,820 Indian menstrual health Q&As — outperforms GPT-4 on this domain |
+| 📚 **RAG Pipeline** | Responses grounded in WHO, ACOG & NIH documents via Bedrock Knowledge Bases |
+| 📊 **Pattern Analysis** | Statistical engine flags health concerns — PCOS, anaemia, endometriosis, PMS/PMDD |
+| 📄 **Health Reports** | AI-generated doctor-ready summaries with concern flags & questions for your doctor |
+| 🗓️ **Doctor Booking** | Browse verified gynaecologists, book slots, share complete health summary before appointment |
+| 🔒 **Privacy First** | DPDP Act 2023 compliant — no PII sent to AI models, encrypted at rest |
 
-- Node.js 18+
-- npm or yarn
-- AWS Account with configured services (see [AWS Setup Guide](./AWS_SETUP_GUIDE.md))
-- AWS CLI installed and configured
+---
 
-### Installation
+## 🏗️ Architecture
 
-1. **Clone the repository**
-   ```bash
-   cd OVIRA
-   ```
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           OVIRA AI ARCHITECTURE                         │
+└─────────────────────────────────────────────────────────────────────────┘
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+  👩 Woman (User)
+       │
+       ▼
+  ┌──────────────────┐
+  │  Amazon Cognito  │  ← Signup, Login, OTP, JWT, Password Reset
+  └────────┬─────────┘
+           │
+           ▼
+  ┌──────────────────────────────────────────┐
+  │      Next.js Serverless API Routes       │
+  │  /api/auth    → Cognito flows            │
+  │  /api/chat    → AI routing + context     │
+  │  /api/symptoms → Symptom log CRUD        │
+  │  /api/health-report → Report generation  │
+  └────────────────────┬─────────────────────┘
+                       │
+           ┌───────────┴───────────┐
+           │   Domain-specific?    │
+           └───────┬───────────────┘
+                   │
+         YES ◄─────┴─────► NO
+          │                  │
+          ▼                  ▼
+  ┌──────────────┐   ┌──────────────────────────────┐
+  │     EC2      │   │       Amazon Bedrock          │
+  │ MenstLLaMA  │   │  Claude 3 Haiku — AI chat     │
+  │             │   │  Nova Micro — Fallback         │
+  │ Fine-tuned  │   │  Titan Embeddings — RAG        │
+  │ 23,820 Q&As │   │  Knowledge Bases:              │
+  │ Indian data │   │  WHO + ACOG + NIH docs         │
+  └──────┬───────┘   └──────────────┬───────────────┘
+          └──────────────┬───────────┘
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+              ▼                     ▼
+  ┌─────────────────┐     ┌──────────────────┐
+  │  Amazon         │     │    Amazon S3      │
+  │  DynamoDB       │     │                  │
+  │                 │     │  Health report   │
+  │  User profiles  │     │  PDFs            │
+  │  Symptom logs   │     │  Knowledge base  │
+  │  Chat history   │     │  source files    │
+  │  Appointments   │     │  (WHO, ACOG,NIH) │
+  └─────────────────┘     └──────────────────┘
+```
 
-3. **Set up AWS services**
-   
-   Follow the comprehensive [AWS Setup Guide](./AWS_SETUP_GUIDE.md) to configure:
-   - AWS Cognito User Pool
-   - DynamoDB Tables
-   - S3 Bucket
-   - Amazon Bedrock access
-   - IAM User and Policies
+---
 
-4. **Set up environment variables**
-   
-   Create a `.env.local` file in the root directory:
-   ```env
-   # AWS Configuration
-   AWS_REGION=us-east-1
-   AWS_ACCESS_KEY_ID=your_access_key_id
-   AWS_SECRET_ACCESS_KEY=your_secret_access_key
+## 🤖 The AI Stack — What Makes Ovira Different
 
-   # AWS Cognito
-   NEXT_PUBLIC_AWS_REGION=us-east-1
-   NEXT_PUBLIC_COGNITO_USER_POOL_ID=your_user_pool_id
-   NEXT_PUBLIC_COGNITO_CLIENT_ID=your_client_id
-   NEXT_PUBLIC_COGNITO_IDENTITY_POOL_ID=your_identity_pool_id
+### Hybrid AI Routing
+```
+User asks: "Why do I get cramps before my period?"
+    → routeToSLM("cramps before period") = TRUE
+    → MenstLLaMA on EC2
+    → Response grounded in Indian menstrual health training data
+    → Badge shown: "🧬 Powered by MenstLLaMA"
 
-   # DynamoDB Tables
-   NEXT_PUBLIC_DYNAMODB_USERS_TABLE=ovira-users
-   NEXT_PUBLIC_DYNAMODB_SYMPTOMS_TABLE=ovira-symptoms
-   NEXT_PUBLIC_DYNAMODB_REPORTS_TABLE=ovira-reports
-   NEXT_PUBLIC_DYNAMODB_CHAT_TABLE=ovira-chat-history
+User asks: "How much water should I drink daily?"
+    → routeToSLM("water intake") = FALSE
+    → Amazon Bedrock (Claude 3 Haiku + RAG)
+    → Response grounded in WHO/ACOG/NIH documents
+    → Citations shown to user
+```
 
-   # S3
-   NEXT_PUBLIC_S3_REPORTS_BUCKET=ovira-reports-prototype
-   NEXT_PUBLIC_S3_REGION=us-east-1
+### MenstLLaMA
+- **Base model:** LLaMA 3 8B Instruct, fine-tuned
+- **Training data:** 23,820 menstrual health Q&A pairs (Indian context)
+- **Published:** JMIR, January 2025
+- **Performance:** Outperforms GPT-4o and Claude-3 on menstrual health domain accuracy
+- **Deployment:** EC2 instance with llama-cpp-python (4-bit quantised GGUF)
+- **Fallback:** If EC2 unavailable → Bedrock Claude Haiku automatically
 
-   # Amazon Bedrock
-   BEDROCK_MODEL_ID=anthropic.claude-3-haiku-20240307-v1:0
-   BEDROCK_FALLBACK_MODEL_ID=amazon.titan-text-express-v1
-   BEDROCK_REGION=us-east-1
-   ```
+### RAG Knowledge Base (2 separate KBs)
+| KB | Purpose | Documents |
+|---|---|---|
+| Chatbot KB | Plain language patient responses | OWH Menstrual Cycle, PCOS, Endometriosis fact sheets |
+| Clinical KB | Doctor-ready report generation | ACOG CPG No.7, WHO PCOS, NIH Iron Deficiency, FIGO HMB |
 
-5. **Run the development server**
-   ```bash
-   npm run dev
-   ```
+### Health Context Injection
+Every single AI call receives the user's full health context:
+```typescript
+// Injected into EVERY prompt
+healthContextSummary = `
+  User is a [age] woman with [conditions].
+  Follows a [diet] diet, [grain]-dominant staples.
+  Cycle averages [N] days, [regularity].
+  Personal goal: [goal].
+  Iron-rich food intake: [frequency].
+`
+```
+*This is why Ovira says "Given your PCOS and rice-dominant diet..." — not "Here is some general advice."*
 
-6. **Open in browser**
-   Navigate to [http://localhost:3000](http://localhost:3000)
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+```
+Next.js 15 (App Router)    — Framework, SSR, API routes
+TypeScript                  — Type safety throughout
+Tailwind CSS               — All styling and responsive design
+Lucide React               — Icon library
+```
+
+### AWS Backend
+```
+Amazon Cognito             — Auth: signup, OTP, JWT, password reset
+Amazon DynamoDB            — Database: profiles, logs, chat, appointments
+Amazon Bedrock             — AI: Claude 3 Haiku, Nova Micro, Titan, Knowledge Bases
+Amazon S3                  — Storage: PDFs, knowledge base files
+Amazon EC2                 — Compute: MenstLLaMA inference server
+AWS SDK v3                 — @aws-sdk/client-* for all AWS connections
+```
+
+### AI Models
+```
+Claude 3 Haiku             — Primary AI companion chat
+Nova Micro                 — Cost-efficient fallback
+Titan Text Embeddings v2   — RAG document vectorisation
+MenstLLaMA (EC2)           — Domain SLM for menstrual health queries
+```
 
 ---
 
@@ -127,216 +193,257 @@
 ```
 ovira-ai/
 ├── src/
-│   ├── app/                      # Next.js App Router
-│   │   ├── (auth)/               # Auth routes (login, signup, onboarding)
-│   │   ├── (dashboard)/          # Protected dashboard routes
-│   │   ├── api/                  # API routes (chat, analyze, reports)
-│   │   ├── layout.tsx            # Root layout with AuthProvider
-│   │   ├── page.tsx              # Landing page
-│   │   └── globals.css           # Design system
-│   ├── components/
-│   │   └── ui/                   # Reusable UI components
-│   ├── contexts/
-│   │   └── auth-context.tsx      # AWS Cognito authentication state
+│   ├── app/
+│   │   ├── (pages)/
+│   │   │   ├── dashboard/          # Main dashboard + calendar heatmap
+│   │   │   ├── chat/               # AI companion chat (Aria)
+│   │   │   ├── chat/doctor/        # Structured pre-visit consultation
+│   │   │   ├── log/                # Daily symptom logging
+│   │   │   ├── reports/            # Health reports list
+│   │   │   ├── health-report/      # Report generation + view
+│   │   │   ├── doctors/            # Browse + book gynaecologists
+│   │   │   ├── appointments/[id]/  # Appointment + health summary send
+│   │   │   ├── articles/           # AI-personalised health content
+│   │   │   ├── settings/           # Full health data hub
+│   │   │   ├── onboarding/         # 6-step rich onboarding wizard
+│   │   │   ├── login/              # Auth
+│   │   │   └── signup/             # Auth
+│   │   └── api/
+│   │       ├── auth/               # Cognito flows (6 routes)
+│   │       ├── chat/               # Hybrid AI routing
+│   │       ├── symptoms/           # Symptom CRUD
+│   │       ├── health-report/      # Report generation
+│   │       ├── appointments/       # Booking + summary generation
+│   │       ├── articles/           # AI-generated content
+│   │       └── documents/          # Health document upload/fetch
 │   ├── lib/
-│   │   └── aws/                  # AWS service integrations
-│   │       ├── config.ts         # AWS configuration
-│   │       ├── cognito.ts        # Cognito authentication
-│   │       ├── dynamodb.ts       # DynamoDB operations
-│   │       ├── s3.ts             # S3 file operations
-│   │       └── bedrock.ts        # Bedrock AI services
-│   └── types/                    # TypeScript type definitions
-├── .kiro/specs/ovira-ai/         # Design & requirements docs
-├── AWS_SETUP_GUIDE.md            # Comprehensive AWS setup guide
-├── AWS_MIGRATION_PLAN.md         # Migration from Firebase to AWS
-└── ENV_SETUP.md                  # Environment setup guide
+│   │   ├── aws/
+│   │   │   ├── bedrock.ts          # Bedrock invocation + retry logic
+│   │   │   ├── bedrock-kb.ts       # RAG Knowledge Base client
+│   │   │   ├── cognito.ts          # Auth flows
+│   │   │   ├── dynamodb.ts         # DB operations
+│   │   │   └── s3.ts               # File storage
+│   │   ├── menstllama-client.ts    # EC2 SLM client + routing logic
+│   │   └── utils/
+│   │       └── pattern-analysis.ts # Statistical concern flagging engine
+│   ├── components/
+│   │   ├── ui/                     # Design system components
+│   │   ├── UpgradeGate.tsx         # Freemium enforcement wrapper
+│   │   └── UpgradeModal.tsx        # Pro upgrade flow
+│   ├── contexts/
+│   │   └── auth-context.tsx        # Global user state + profile
+│   └── types/
+│       └── index.ts                # All TypeScript interfaces
+├── scripts/
+│   └── seed-demo-data.ts           # Seeds 365 days of data for Priya demo
+└── public/
 ```
 
 ---
 
-## 🎨 Design System
+## 🚀 Getting Started
 
-### Color Palette
+### Prerequisites
+- Node.js 18+
+- AWS Account with Bedrock access enabled
+- AWS CLI configured
 
-| Token | Usage |
-|-------|-------|
-| `primary` (#7C3AED) | Primary actions, main brand color |
-| `secondary` (#14B8A6) | Secondary actions |
-| `accent` (#EC4899) | Highlights, badges |
-| `success` (#10B981) | Success states |
-| `warning` (#F59E0B) | Warning indicators |
-| `error` (#EF4444) | Error states |
+### Installation
 
-### Typography
-- **Font**: Inter (Google Fonts)
-- Premium, medical-grade aesthetic
-- Accessible spacing and sizing
+```bash
+# Clone the repository
+git clone https://github.com/your-org/ovira-ai.git
+cd ovira-ai
 
----
+# Install dependencies
+npm install
 
-## 🔧 Tech Stack
-
-- **Frontend**: Next.js 15, React 18, TypeScript
-- **Styling**: Tailwind CSS v4
-- **Authentication**: AWS Cognito
-- **Database**: Amazon DynamoDB
-- **Storage**: Amazon S3
-- **AI**: Amazon Bedrock (Claude 3 Haiku, Titan Text Express)
-- **Icons**: Lucide React
-- **Forms**: React Hook Form
-- **Dates**: date-fns
-- **PDF Generation**: @react-pdf/renderer
-
----
-
-## 📱 Pages
-
-| Route | Description |
-|-------|-------------|
-| `/` | Landing page |
-| `/login` | Sign in page |
-| `/signup` | Create account |
-| `/onboarding` | User setup wizard |
-| `/dashboard` | Main dashboard |
-| `/log` | Symptom logging form |
-| `/chat` | AI chat interface |
-| `/reports` | Health analysis |
-| `/settings` | User settings |
-
----
-
-## 🏗️ AWS Architecture
-
-### Services Used
-
-1. **AWS Cognito**: User authentication and authorization
-2. **Amazon DynamoDB**: NoSQL database for user data and symptom logs
-3. **Amazon S3**: Secure storage for health reports (PDFs)
-4. **Amazon Bedrock**: AI/LLM services for chat and analysis
-5. **AWS IAM**: Access control and security policies
-6. **AWS KMS**: Encryption key management
-
-### Architecture Diagram
-
+# Copy environment variables
+cp .env.example .env.local
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Web/Mobile    │    │   API Gateway    │    │  Lambda/Next.js │
-│   Frontend      │◄──►│   + Cognito      │◄──►│   API Routes    │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                │                        │
-                                ▼                        ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                        AI Processing Layer                       │
-│  ┌─────────────────┐              ┌─────────────────────────────┐│
-│  │ Amazon Bedrock  │              │     Pattern Analysis        ││
-│  │ (Claude/Titan)  │              │   (Statistical Models)      ││
-│  └─────────────────┘              └─────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                         Data Layer                              │
-│  ┌─────────────────┐              ┌─────────────────────────────┐│
-│  │   DynamoDB      │              │         Amazon S3           ││
-│  │ (User & Symptom │              │  (Reports & Documents)      ││
-│  │     Data)       │              │                             ││
-│  └─────────────────┘              └─────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
+
+### Environment Variables
+
+```bash
+# ── AWS Core ──────────────────────────────────────────
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+
+# ── Amazon Cognito ────────────────────────────────────
+NEXT_PUBLIC_COGNITO_USER_POOL_ID=us-east-1_xxxxxxxxx
+NEXT_PUBLIC_COGNITO_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# ── Amazon DynamoDB ───────────────────────────────────
+DYNAMODB_TABLE_USERS=ovira-users
+DYNAMODB_TABLE_SYMPTOMS=ovira-symptoms
+DYNAMODB_TABLE_REPORTS=ovira-reports
+DYNAMODB_TABLE_CHAT=ovira-chat-history
+DYNAMODB_TABLE_APPOINTMENTS=ovira-appointments
+DYNAMODB_TABLE_DOCUMENTS=ovira-documents
+
+# ── Amazon Bedrock ────────────────────────────────────
+BEDROCK_MODEL_ID=anthropic.claude-3-haiku-20240307-v1:0
+BEDROCK_FALLBACK_MODEL_ID=amazon.nova-micro-v1:0
+BEDROCK_CHATBOT_KB_ID=your_chatbot_kb_id
+BEDROCK_CLINICAL_KB_ID=your_clinical_kb_id
+
+# ── Amazon S3 ─────────────────────────────────────────
+S3_BUCKET_REPORTS=ovira-reports
+S3_BUCKET_DOCUMENTS=ovira-documents
+S3_BUCKET_KNOWLEDGE_BASE=ovira-knowledge-base
+
+# ── MenstLLaMA EC2 ────────────────────────────────────
+MENSTLLAMA_EC2_URL=http://your-ec2-public-ip:8080
+
+# ── App ───────────────────────────────────────────────
+NEXTAUTH_SECRET=your_secret
+NEXT_PUBLIC_APP_URL=https://your-domain.com
+```
+
+### Run Development Server
+
+```bash
+npm run dev
+# Open http://localhost:3000
+```
+
+### Seed Demo Data
+
+```bash
+# Seeds 365 days of PCOS-pattern data for Priya demo account
+npx ts-node scripts/seed-demo-data.ts
 ```
 
 ---
 
-## ⚠️ Medical Disclaimer & Responsible AI
+## 🩷 Demo Account
 
-> **IMPORTANT**: Ovira AI provides health insights for **informational and decision-support purposes only**. This is NOT a substitute for professional medical advice, diagnosis, or treatment.
+Want to explore Ovira AI without signing up?
+
+```
+Email:    demo@ovira.ai
+Password: OviraDemo2025!
+```
+
+**Meet Priya** — our demo user:
+- 27 years old, Bangalore
+- Vegetarian, rice-dominant (South Indian) diet
+- PCOS (diagnosed September 2024)
+- 365 days of tracked symptom data
+- Saved doctor: Dr. Meera Nair, Apollo Hospitals
+- Uploaded document: Ultrasound report
+
+> *Try asking Aria: "Why do I get acne before my period?" — watch MenstLLaMA respond with Indian context-aware advice*
+
+---
+
+## 💰 Cost Analysis
+
+| Scale | Monthly Cost | Breakdown |
+|---|---|---|
+| **MVP / Dev** | ~$0 | All free tiers (Cognito 50K MAU, DynamoDB 25GB, S3 5GB) |
+| **100 DAU** | ~$5–15 | Bedrock tokens only (Claude Haiku $0.25/1M input) |
+| **1,000 DAU** | ~$28 | Bedrock + EC2 t3.medium (~$0.04/hr) |
+| **10,000 DAU** | ~$245 | Bedrock scaled + response caching active |
+
+**Cost optimisations built in:**
+- Prompt hash caching → identical questions served from DynamoDB cache (TTL: 24h)
+- Nova Micro fallback for simple queries (10x cheaper than Haiku)
+- MenstLLaMA on EC2 for domain queries (fixed cost vs per-token Bedrock)
+- Retry with exponential backoff (1s/2s/4s) prevents wasteful duplicate calls
+
+---
+
+## 🔒 Privacy & Responsible AI
+
+### DPDP Act 2023 Compliance (India)
+- ✅ Explicit consent screen before onboarding
+- ✅ No PII sent to AI models — only anonymised health patterns
+- ✅ Right to erasure — full account deletion in Settings
+- ✅ Data localisation — all data in AWS ap-south-1 (Mumbai)
+- ✅ User can export all their data as JSON at any time
 
 ### Responsible AI Principles
-
-1. **Non-Diagnostic**: All AI outputs are statistical patterns, not medical diagnoses
-2. **Decision-Support Only**: Provides information to support healthcare decisions
-3. **Encourages Consultation**: Always recommends consulting healthcare providers
-4. **Medical Safety Guardrails**: Blocks diagnostic and treatment language
-5. **Transparent Limitations**: Clear about AI capabilities and boundaries
-6. **Synthetic Data Training**: No real patient data used in AI training
-
-### Prohibited AI Outputs
-
-The system is designed to NEVER:
-- Provide medical diagnoses
-- Recommend specific treatments or medications
-- Name diseases or medical conditions
-- Replace professional medical consultation
+- ❌ **Never:** diagnose, diagnosis, you have [condition], treatment, prescribe
+- ✅ **Always:** "this pattern is worth discussing with your doctor"
+- ✅ Every AI response ends with consultation reminder
+- ✅ Medical safety guardrails on every Bedrock and MenstLLaMA call
+- ✅ Concern flagging only — never replaces professional medical consultation
 
 ---
 
-## 🤝 Contributing
+## 🗺️ Roadmap
 
-Contributions are welcome! Please read our contributing guidelines before submitting PRs.
+| Feature | Timeline |
+|---|---|
+| 🌐 Multilingual support (Hindi, Tamil, Telugu) | Q2 2025 |
+| 📧 Doctor email delivery via Amazon SES | Q2 2025 |
+| ⌚ Wearable device integration (period tracking sync) | Q3 2025 |
+| 📤 FHIR export for hospital system integration | Q3 2025 |
+| 🏥 Clinic dashboard for gynaecologists | Q4 2025 |
+| 💊 Medication and supplement tracking | Q4 2025 |
+| 🤝 B2B corporate wellness partnerships | 2026 |
+
+---
+
+## 📊 Business Model
+
+```
+FREE          →  Rs 0/month
+              AI companion chat, basic symptom logging,
+              1 health report/month
+
+OVIRA PRO     →  Rs 199/month
+              Doctor Chat (5 sessions), unlimited reports,
+              doctor booking, PDF export, priority AI
+
+OVIRA CLINIC  →  Rs 2,999/month
+              Doctor dashboard, patient management,
+              bulk appointment handling, API access
+```
+
+**Market:**
+- TAM: 180M Indian women (18–45) with smartphones
+- SAM: 45M urban women actively tracking health
+- SOM: 12M willing to pay for personalised health tools
+
+---
+
+## 🏆 Hackathon
+
+**Event:** AI for Bharat Hackathon 2025
+**Powered by:** AWS · H2S · YourStory
+**Prize pool:** ₹40 Lakhs
+
+**Judging criteria we address:**
+| Criterion | Weight | Our Approach |
+|---|---|---|
+| Implementation | 50% | Live URL, demo account, zero crashes |
+| Technical Depth | 20% | MenstLLaMA + RAG + hybrid routing |
+| Cost Efficiency | 10% | ~$0 MVP, caching, Nova Micro fallback |
+| Impact & Viability | 10% | 180M TAM, freemium model, DPDP compliant |
+
+---
+
+## 👥 Team
+
+Built with 🩷 for Indian women who deserve better healthcare technology.
 
 ---
 
 ## 📄 License
 
-MIT License - see LICENSE file for details.
-
----
-
-## 🔐 Security
-
-### Reporting Security Issues
-
-Please report security vulnerabilities to: security@ovira-ai.com
-
-### Security Features
-
-- End-to-end encryption (TLS 1.3)
-- Data encryption at rest (AWS KMS)
-- AWS Cognito MFA support
-- IAM least privilege access
-- Regular security audits
-- OWASP compliance
-
----
-
-## 📊 Cost Estimate
-
-### Prototype Phase (~100 users)
-
-- **AWS Cognito**: Free (< 50K MAUs)
-- **DynamoDB**: ~$5-10/month
-- **S3**: ~$1-5/month
-- **Bedrock**: ~$10-50/month
-- **Total**: ~$16-65/month
-
-### Production Phase (10K users)
-
-- **AWS Cognito**: ~$50/month
-- **DynamoDB**: ~$50-100/month
-- **S3**: ~$10-20/month
-- **Bedrock**: ~$200-500/month
-- **Total**: ~$310-670/month
-
----
-
-## 📚 Documentation
-
-- [AWS Setup Guide](./AWS_SETUP_GUIDE.md) - Complete AWS service setup
-- [Migration Plan](./AWS_MIGRATION_PLAN.md) - Firebase to AWS migration details
-- [Design Document](./.kiro/specs/ovira-ai/design.md) - System architecture
-- [Requirements Document](./.kiro/specs/ovira-ai/requirements.md) - Feature requirements
-
----
-
-## 🆘 Support
-
-For issues or questions:
-- Check [AWS Setup Guide](./AWS_SETUP_GUIDE.md)
-- Review CloudWatch logs
-- Open an issue on GitHub
-- Contact: support@ovira-ai.com
+MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
 <div align="center">
-Made with ❤️ for women's health | Powered by AWS
+
+**Ovira AI — For the woman who deserves more than a 15-minute appointment.**
+
+*🩷 Star this repo if you believe women's health deserves better technology*
+
+[![GitHub stars](https://img.shields.io/github/stars/your-org/ovira-ai?style=social)](https://github.com/your-org/ovira-ai)
+
 </div>

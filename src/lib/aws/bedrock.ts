@@ -73,48 +73,82 @@ export function sanitizeResponse(text: string): string {
     return sanitized;
 }
 
-// Invoke Claude model via Bedrock
+// Detect if we're using a Claude or Nova/Titan model
+function isClaudeModel(modelId: string): boolean {
+    return modelId.includes('anthropic') || modelId.includes('claude');
+}
+
+// Invoke the configured model (Claude or Nova) via Bedrock
 export async function invokeClaude(
     prompt: string,
     systemPrompt?: string,
     conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
 ): Promise<string> {
     const client = getBedrockClient();
-
-    // Build messages array
-    const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
-
-    if (conversationHistory) {
-        messages.push(...conversationHistory);
-    }
-
-    messages.push({
-        role: 'user',
-        content: prompt,
-    });
-
-    // Prepare request body for Claude
-    const requestBody = {
-        anthropic_version: 'bedrock-2023-05-31',
-        max_tokens: 1024,
-        temperature: 0.7,
-        system: systemPrompt || 'You are a helpful, empathetic women\'s health assistant. Provide educational information only. Never diagnose or prescribe treatment.',
-        messages: messages,
-    };
+    const modelId = bedrockConfig.modelId;
 
     try {
-        const command = new InvokeModelCommand({
-            modelId: bedrockConfig.modelId,
-            contentType: 'application/json',
-            accept: 'application/json',
-            body: JSON.stringify(requestBody),
-        });
+        let requestBody: object;
+        let text = '';
 
-        const response = await client.send(command);
-        const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+        if (isClaudeModel(modelId)) {
+            // ── Claude (Anthropic) format ────────────────────────────────────
+            const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+            if (conversationHistory) messages.push(...conversationHistory);
+            messages.push({ role: 'user', content: prompt });
 
-        // Extract text from Claude response
-        const text = responseBody.content?.[0]?.text || '';
+            requestBody = {
+                anthropic_version: 'bedrock-2023-05-31',
+                max_tokens: 1024,
+                temperature: 0.7,
+                system: systemPrompt || 'You are a helpful, empathetic women\'s health assistant. Provide educational information only. Never diagnose or prescribe treatment.',
+                messages,
+            };
+
+            const command = new InvokeModelCommand({
+                modelId,
+                contentType: 'application/json',
+                accept: 'application/json',
+                body: JSON.stringify(requestBody),
+            });
+
+            const response = await client.send(command);
+            const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+            text = responseBody.content?.[0]?.text || '';
+
+        } else {
+            // ── Amazon Nova / Titan format ───────────────────────────────────
+            const novaMessages = [];
+            if (conversationHistory) {
+                for (const msg of conversationHistory) {
+                    novaMessages.push({ role: msg.role, content: [{ text: msg.content }] });
+                }
+            }
+            novaMessages.push({ role: 'user', content: [{ text: prompt }] });
+
+            requestBody = {
+                messages: novaMessages,
+                system: systemPrompt
+                    ? [{ text: systemPrompt }]
+                    : [{ text: 'You are a helpful, empathetic women\'s health assistant. Provide educational information only. Never diagnose or prescribe treatment.' }],
+                inferenceConfig: {
+                    maxTokens: 1024,
+                    temperature: 0.7,
+                    topP: 0.9,
+                },
+            };
+
+            const command = new InvokeModelCommand({
+                modelId,
+                contentType: 'application/json',
+                accept: 'application/json',
+                body: JSON.stringify(requestBody),
+            });
+
+            const response = await client.send(command);
+            const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+            text = responseBody.output?.message?.content?.[0]?.text || '';
+        }
 
         // Apply medical safety guardrails
         if (containsProhibitedTerms(text)) {
@@ -124,10 +158,11 @@ export async function invokeClaude(
 
         return text;
     } catch (error) {
-        console.error('Claude invocation error:', error);
+        console.error('Model invocation error:', error);
         throw error;
     }
 }
+
 
 // Invoke Nova Micro model as fallback
 export async function invokeTitan(prompt: string): Promise<string> {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Logo } from '@/components/ui/Logo';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, CheckCircle, KeyRound } from 'lucide-react';
 
@@ -117,9 +118,8 @@ export default function ForgotPasswordPage() {
         <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-teal-50 via-white to-teal-50">
             <div className="w-full max-w-md animate-slide-in-up">
                 {/* Logo/Brand */}
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-teal-600 mb-2">Ovira AI</h1>
-                    <p className="text-gray-600">Reset your password</p>
+                <div className="flex flex-col items-center mb-6">
+                    <Logo variant="vertical" size={140} />
                 </div>
 
                 <Card variant="elevated" padding="lg">
@@ -206,8 +206,8 @@ export default function ForgotPasswordPage() {
                             <CardContent>
                                 {error && (
                                     <div className={`mb-4 p-3 rounded-lg border text-sm ${error.includes('sent')
-                                            ? 'bg-green-50 border-green-200 text-green-700'
-                                            : 'bg-red-50 border-red-200 text-red-600'
+                                        ? 'bg-green-50 border-green-200 text-green-700'
+                                        : 'bg-red-50 border-red-200 text-red-600'
                                         }`}>
                                         {error}
                                     </div>

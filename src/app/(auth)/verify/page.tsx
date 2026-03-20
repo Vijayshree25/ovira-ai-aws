@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Logo } from '@/components/ui/Logo';
 import { Mail, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -92,9 +93,8 @@ function VerifyContent() {
     return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 via-background to-accent/5">
             <div className="w-full max-w-md animate-slide-in-up">
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold gradient-text mb-2">Ovira AI</h1>
-                    <p className="text-text-secondary">Verify your email address</p>
+                <div className="flex flex-col items-center mb-6">
+                    <Logo variant="vertical" size={140} />
                 </div>
 
                 <Card variant="elevated" padding="lg">

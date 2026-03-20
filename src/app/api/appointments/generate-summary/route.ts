@@ -1,22 +1,23 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, UpdateCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { getUserSymptomLogs, getUserProfile } from '@/lib/aws/dynamodb';
 import { calculateHealthStats, analyzeHealthRiskFlags } from '@/lib/utils/healthAnalysis';
 import { invokeAI } from '@/lib/aws/bedrock';
+import { withRateLimit } from '@/middleware/rateLimit';
 
 const client = new DynamoDBClient({
-    region: process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1',
+    region: process.env.AWS_REGION || 'us-east-1',
     credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
     },
 });
 const docClient = DynamoDBDocumentClient.from(client);
-const APPOINTMENTS_TABLE = process.env.NEXT_PUBLIC_DYNAMODB_APPOINTMENTS_TABLE || 'ovira-appointments';
-const DOCUMENTS_TABLE = process.env.NEXT_PUBLIC_DYNAMODB_DOCUMENTS_TABLE || 'ovira-documents';
+const APPOINTMENTS_TABLE = process.env.DYNAMODB_APPOINTMENTS_TABLE || 'ovira-appointments';
+const DOCUMENTS_TABLE = process.env.DYNAMODB_DOCUMENTS_TABLE || 'ovira-documents';
 
-export async function POST(request: Request) {
+async function handlePost(request: NextRequest) {
     try {
         const { userId, appointmentId } = await request.json();
 
@@ -113,3 +114,7 @@ Final paragraph must say: This summary contains self-tracked data from the Ovira
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
+
+
+// Export wrapped handler with rate limiting
+export const POST = withRateLimit(handlePost, 'bedrock');

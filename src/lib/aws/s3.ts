@@ -1,8 +1,26 @@
-'use client';
+// Server-side only - for use in API routes
+// DO NOT import this file in client components
 
+import { S3Client } from '@aws-sdk/client-s3';
 import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { getS3Client, s3Config } from './config';
+
+// S3 Configuration from server-side environment variables
+const s3Config = {
+    reportsBucket: process.env.S3_REPORTS_BUCKET || 'ovira-reports-prototype',
+    region: process.env.AWS_REGION || 'us-east-1',
+};
+
+// Server-side S3 client initialization
+function getS3Client() {
+    return new S3Client({
+        region: s3Config.region,
+        credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        },
+    });
+}
 
 // Upload file to S3
 export async function uploadFile(

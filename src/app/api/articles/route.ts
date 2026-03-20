@@ -1,9 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { invokeAI } from '@/lib/aws/bedrock';
-import { getDocClient, dynamoDBTables } from '@/lib/aws/config';
-import { GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { getUserProfile, getUserSymptomLogs } from '@/lib/aws/dynamodb';
 import { getCurrentCycleInfo } from '@/lib/utils/cycle-analysis';
+
+// Initialize DynamoDB client (server-side only)
+const client = new DynamoDBClient({
+    region: process.env.AWS_REGION!,
+    credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    },
+});
+
+const docClient = DynamoDBDocumentClient.from(client);
+const ARTICLES_TABLE = process.env.DYNAMODB_ARTICLES_TABLE || 'ovira-articles';
 
 export async function GET(request: NextRequest) {
     try {
@@ -20,12 +32,10 @@ export async function GET(request: NextRequest) {
             const today = new Date().toISOString().split('T')[0];
             const cacheKey = `${userId}#${today}`;
 
-            const docClient = getDocClient();
-
             // 1. Check DynamoDB Cache
             try {
                 const getCmd = new GetCommand({
-                    TableName: dynamoDBTables.articles,
+                    TableName: ARTICLES_TABLE,
                     Key: { id: cacheKey }
                 });
                 const cacheRes = await docClient.send(getCmd);
@@ -110,7 +120,7 @@ export async function GET(request: NextRequest) {
             };
 
             await docClient.send(new PutCommand({
-                TableName: dynamoDBTables.articles,
+                TableName: ARTICLES_TABLE,
                 Item: articleItem
             }));
 

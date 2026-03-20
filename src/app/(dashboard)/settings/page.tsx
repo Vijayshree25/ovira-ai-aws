@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Logo } from '@/components/ui/Logo';
 import {
     SUPPORTED_LANGUAGES,
     HEALTH_CONDITIONS,
@@ -769,10 +770,11 @@ export default function SettingsHubPage() {
                             <CardContent className="p-8">
                                 <div className="flex justify-between items-start mb-8">
                                     <div>
-                                        <div className="flex items-center gap-2 mb-2">
+                                        <div className="flex items-center gap-3">
+                                            <Logo variant="icon" size={48} showText={false} />
                                             <h3 className="text-2xl font-bold">Ovira Pro</h3>
-                                            <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase">Active</span>
                                         </div>
+                                        <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase">Active</span>
                                         <p className="text-white/80">Renewal on Oct 12, 2026</p>
                                     </div>
                                     <div className="p-3 bg-white/10 rounded-2xl">

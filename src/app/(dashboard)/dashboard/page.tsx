@@ -30,7 +30,9 @@ import {
     Pill,
     X,
     Settings,
-    PartyPopper
+    PartyPopper,
+    Users,
+    Check
 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
